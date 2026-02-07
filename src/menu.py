@@ -292,3 +292,52 @@ def select_output_directory(default_dir):
         ).execute()
 
     return None
+
+
+def select_files_from_list(files):
+    if not files:
+        console.print("[bold red]Нет файлов для выбора[/bold red]")
+        return []
+
+    choices = [
+        {"name": f"📄 {f.relative_to(f.parent.parent) if len(f.parts) > 2 else f.name} ({f.suffix})", "value": f}
+        for f in files
+    ]
+
+    return inquirer.checkbox(
+        message="Выберите файлы (Пробел — отметить, Enter — подтвердить):",
+        choices=choices,
+        validate=lambda result: len(result) > 0,
+        invalid_message="Выберите хотя бы один файл",
+    ).execute()
+
+
+def select_file_filter_mode():
+    choices = [
+        {"name": "Все текстовые файлы", "value": "all"},
+        {"name": "Фильтр по расширению (.py, .js, ...)", "value": "extension"},
+        {"name": "Поиск по имени", "value": "search"},
+        {"name": "← Назад", "value": "back"},
+    ]
+
+    return inquirer.select(
+        message="Как отфильтровать файлы?",
+        choices=choices,
+        pointer="→",
+    ).execute()
+
+
+def input_extensions():
+    return inquirer.text(
+        message="Введите расширения через запятую (например: .py, .js, .txt):",
+        validate=lambda val: len(val.strip()) > 0,
+        invalid_message="Введите хотя бы одно расширение",
+    ).execute()
+
+
+def input_search_query():
+    return inquirer.text(
+        message="Введите часть имени файла для поиска:",
+        validate=lambda val: len(val.strip()) > 0,
+        invalid_message="Поисковый запрос не может быть пустым",
+    ).execute()

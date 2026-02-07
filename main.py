@@ -25,8 +25,20 @@ from src.menu import (
     select_profile,
     settings_menu,
     select_copy_to_clipboard,
+    select_files_from_list,
+    select_file_filter_mode,
+    input_extensions,
+    input_search_query,
 )
-from src.scanner import scan_directory, get_subdirectories, build_tree_view
+from src.scanner import (
+    scan_directory,
+    get_subdirectories,
+    build_tree_view,
+    collect_text_files,
+    scan_selected_files,
+    filter_by_extensions,
+    filter_by_name,
+)
 from src.session import (
     save_session,
     load_session,
@@ -395,6 +407,99 @@ def handle_settings():
                 console.print("[yellow]Нет сохранённых профилей[/yellow]")
 
 
+def handle_select_files():
+    console.print("[bold cyan]Выбор файлов в директориях[/bold cyan]\n")
+
+    root_path = input_directory_path()
+
+    console.print("[dim]Сканирование файлов...[/dim]")
+    all_files = collect_text_files(root_path)
+
+    if not all_files:
+        console.print("[bold red]Текстовые файлы не найдены[/bold red]")
+        return
+
+    console.print(f"[green]Найдено файлов: {len(all_files)}[/green]\n")
+
+    filter_mode = select_file_filter_mode()
+
+    if filter_mode == "back":
+        return
+
+    if filter_mode == "all":
+        filtered = all_files
+
+    elif filter_mode == "extension":
+        raw = input_extensions()
+        extensions = [e.strip() for e in raw.split(",")]
+        filtered = filter_by_extensions(all_files, extensions)
+
+        if not filtered:
+            console.print("[bold red]Файлы с указанными расширениями не найдены[/bold red]")
+            return
+
+        console.print(f"[green]После фильтрации: {len(filtered)} файлов[/green]\n")
+
+    elif filter_mode == "search":
+        query = input_search_query()
+        filtered = filter_by_name(all_files, query)
+
+        if not filtered:
+            console.print(f"[bold red]Файлы с '{query}' в имени не найдены[/bold red]")
+            return
+
+        console.print(f"[green]Найдено по запросу: {len(filtered)} файлов[/green]\n")
+
+    else:
+        return
+
+    selected_files = select_files_from_list(filtered)
+
+    if not selected_files:
+        console.print("[yellow]Файлы не выбраны[/yellow]")
+        return
+
+    console.print(f"\n[bold]Выбрано файлов: {len(selected_files)}[/bold]")
+
+    scan_result = scan_selected_files(selected_files, root_path)
+
+    tree = build_tree_view(scan_result)
+    console.print(tree)
+    show_preview(scan_result)
+
+    if not confirm_action("Продолжить запись?"):
+        console.print("[yellow]Операция отменена[/yellow]")
+        return
+
+    include_tree = toggle_tree_view()
+    scan_result = apply_redaction(scan_result)
+    filename = input_filename()
+    export_format = select_export_format()
+
+    if export_format == "back":
+        return
+
+    output_dir = select_output_directory(root_path)
+
+    if output_dir is None:
+        console.print("[yellow]Операция отменена[/yellow]")
+        return
+
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    final_name = handle_filename_conflict(output_dir, filename, export_format)
+
+    if final_name is None:
+        console.print("[yellow]Операция отменена[/yellow]")
+        return
+
+    output_file = export(scan_result, final_name, export_format, output_dir, include_tree)
+    save_session(scan_result, report_path=output_file)
+    console.print(f"[bold green]✓ Отчёт создан: {output_file}[/bold green]")
+    handle_post_export(output_file)
+
+
 def main():
     show_welcome()
 
@@ -410,7 +515,7 @@ def main():
         elif choice == "Удаление записи":
             handle_delete()
         elif choice == "Выбор файлов в директориях":
-            console.print("[yellow]Будет доступно позже[/yellow]")
+            handle_select_files()
         elif choice == "Настройки":
             handle_settings()
         elif choice == "Выход":

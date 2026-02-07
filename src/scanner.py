@@ -148,3 +148,106 @@ def build_tree_view(scan_result):
             nodes[current_key] = node
 
     return tree
+
+
+def collect_text_files(path, max_file_size_mb=10):
+    root = Path(path).resolve()
+
+    if not root.exists() or not root.is_dir():
+        return []
+
+    files = []
+    _collect_recursive(root, files, max_file_size_mb)
+    return files
+
+
+def _collect_recursive(current_path, files, max_file_size_mb):
+    if not check_access(current_path):
+        return
+
+    try:
+        entries = sorted(current_path.iterdir(), key=lambda e: e.name.lower())
+    except PermissionError:
+        return
+
+    for entry in entries:
+        if entry.is_dir():
+            if entry.name in SKIP_DIRECTORIES:
+                continue
+            _collect_recursive(entry, files, max_file_size_mb)
+
+        elif entry.is_file():
+            if is_binary_extension(entry):
+                continue
+            if not is_within_size_limit(entry, max_file_size_mb):
+                continue
+            files.append(entry)
+
+
+def scan_selected_files(selected_files, root_path):
+    root = Path(root_path).resolve()
+
+    result = {
+        "root": str(root),
+        "structure": [],
+        "files": [],
+        "skipped": [],
+        "errors": [],
+    }
+
+    collected_dirs = set()
+
+    for filepath in selected_files:
+        filepath = Path(filepath).resolve()
+
+        try:
+            relative = filepath.relative_to(root)
+        except ValueError:
+            relative = filepath
+
+        for parent in relative.parents:
+            if str(parent) != "." and str(parent) not in collected_dirs:
+                collected_dirs.add(str(parent))
+                result["structure"].append(
+                    {"path": str(parent), "type": "directory"}
+                )
+
+        result["structure"].append(
+            {"path": str(relative), "type": "file"}
+        )
+
+        encoding = detect_file_encoding(filepath)
+        content = read_file_safe(filepath, encoding)
+
+        if content is not None:
+            result["files"].append(
+                {
+                    "path": str(relative),
+                    "encoding": encoding,
+                    "content": content,
+                }
+            )
+        else:
+            result["errors"].append(
+                {"path": str(relative), "reason": "Failed to read file"}
+            )
+
+    result["structure"].sort(key=lambda x: x["path"])
+
+    return result
+
+
+def filter_by_extensions(files, extensions):
+    ext_set = set()
+    for ext in extensions:
+        ext = ext.strip().lower()
+        if not ext.startswith("."):
+            ext = f".{ext}"
+        ext_set.add(ext)
+
+    return [f for f in files if f.suffix.lower() in ext_set]
+
+
+def filter_by_name(files, query):
+    query = query.strip().lower()
+    return [f for f in files if query in f.name.lower()]
