@@ -1,0 +1,17 @@
+[project]
+name = "context-builder"
+version = "1.0.0"
+description = "Инструмент для сканирования и экспорта структуры проектов"
+requires-python = ">=3.10"
+
+dependencies = [
+    "InquirerPy>=0.3.4",
+    "rich>=13.7",
+    "fpdf2>=2.8",
+    "pyperclip>=1.9",
+    "tiktoken>=0.7",
+    "chardet>=5.2",
+]
+
+[project.scripts]
+context-builder = "main:main"
