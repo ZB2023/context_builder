@@ -1,3 +1,5 @@
+import sys
+
 from pathlib import Path
 
 from rich.console import Console
@@ -392,4 +394,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1:
+        from src.cli import run_cli
+        run_cli()
+    else:
+        main()
