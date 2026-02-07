@@ -13,6 +13,7 @@ from src.menu import (
 from src.scanner import scan_directory, get_subdirectories, build_tree_view
 from src.session import save_session
 from src.preview import show_preview
+from src.exporter import export
 
 console = Console()
 
@@ -67,9 +68,8 @@ def handle_scan():
         session_file = save_session(result)
         console.print(f"[green]✓ Сессия сохранена: {session_file}[/green]")
 
-    console.print(
-        f"[bold green]✓ Запись завершена: {filename}.{export_format}[/bold green]"
-    )
+        output_file = export(result, filename, export_format)
+        console.print(f"[bold green]✓ Отчёт создан: {output_file}[/bold green]")
 
 
 def main():

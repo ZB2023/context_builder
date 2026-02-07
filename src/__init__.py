@@ -9,3 +9,4 @@ from src.menu import (
     select_multiple_directories,
 )
 from src.scanner import scan_directory, get_subdirectories, build_tree_view
+from src.exporter import export
