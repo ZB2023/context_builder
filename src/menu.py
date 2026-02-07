@@ -58,6 +58,14 @@ def input_directory_path():
     ).execute()
 
 
+def input_file_path():
+    return inquirer.filepath(
+        message="Укажите путь к файлу:",
+        validate=lambda path: len(path) > 0,
+        invalid_message="Путь не может быть пустым",
+    ).execute()
+
+
 def input_filename():
     from datetime import datetime
 
@@ -86,6 +94,27 @@ def select_export_format():
     ).execute()
 
 
+def select_convert_format(current_format):
+    all_formats = {
+        "txt": "TXT — текстовый файл",
+        "md": "MD — Markdown",
+        "json": "JSON — структурированные данные",
+    }
+
+    choices = [
+        {"name": name, "value": fmt}
+        for fmt, name in all_formats.items()
+        if fmt != current_format
+    ]
+    choices.append({"name": "← Назад", "value": "back"})
+
+    return inquirer.select(
+        message=f"Текущий формат: {current_format.upper()}. Выберите целевой формат:",
+        choices=choices,
+        pointer="→",
+    ).execute()
+
+
 def confirm_action(message):
     return inquirer.confirm(
         message=message,
@@ -105,4 +134,47 @@ def select_multiple_directories(directories):
         choices=choices,
         validate=lambda result: len(result) > 0,
         invalid_message="Выберите хотя бы одну директорию",
+    ).execute()
+
+
+def select_session(sessions):
+    if not sessions:
+        console.print("[bold red]Нет доступных сессий[/bold red]")
+        return None
+
+    choices = [{"name": str(s), "value": s} for s in sessions]
+    choices.append({"name": "← Назад", "value": "back"})
+
+    return inquirer.select(
+        message="Выберите сессию:",
+        choices=choices,
+        pointer="→",
+    ).execute()
+
+
+def select_modification_action():
+    choices = [
+        {"name": "Пересканировать директорию", "value": "rescan"},
+        {"name": "Использовать старые данные", "value": "use_old"},
+        {"name": "← Назад", "value": "back"},
+    ]
+
+    return inquirer.select(
+        message="Файл отчёта был изменён вручную. Что делать?",
+        choices=choices,
+        pointer="→",
+    ).execute()
+
+def select_report_files(files):
+    if not files:
+        console.print("[bold red]Нет файлов для выбора[/bold red]")
+        return []
+
+    choices = [{"name": f"{f.name} ({f.suffix})", "value": f} for f in files]
+
+    return inquirer.checkbox(
+        message="Выберите файлы для удаления (Пробел — отметить, Enter — подтвердить):",
+        choices=choices,
+        validate=lambda result: len(result) > 0,
+        invalid_message="Выберите хотя бы один файл",
     ).execute()
