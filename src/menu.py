@@ -265,3 +265,30 @@ def select_copy_to_clipboard():
         message="Скопировать результат в буфер обмена?",
         default=False,
     ).execute()
+
+
+def select_output_directory(default_dir):
+    choices = [
+        {"name": f"В сканируемую директорию ({default_dir})", "value": "default"},
+        {"name": "Указать другую директорию", "value": "custom"},
+        {"name": "← Назад", "value": "back"},
+    ]
+
+    result = inquirer.select(
+        message="Куда сохранить отчёт?",
+        choices=choices,
+        pointer="→",
+    ).execute()
+
+    if result == "default":
+        return str(default_dir)
+
+    if result == "custom":
+        return inquirer.filepath(
+            message="Укажите директорию для сохранения:",
+            only_directories=True,
+            validate=lambda path: len(path) > 0,
+            invalid_message="Путь не может быть пустым",
+        ).execute()
+
+    return None

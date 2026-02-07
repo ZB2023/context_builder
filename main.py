@@ -1,5 +1,4 @@
 import sys
-
 from pathlib import Path
 
 from rich.console import Console
@@ -13,6 +12,7 @@ from src.menu import (
     input_profile_name,
     select_export_format,
     select_convert_format,
+    select_output_directory,
     confirm_action,
     select_multiple_directories,
     select_session,
@@ -103,6 +103,7 @@ def handle_scan(profile_settings=None):
         root_path = profile_settings.get("root_path")
         include_tree = profile_settings.get("include_tree", True)
         export_format = profile_settings.get("export_format", "txt")
+        output_dir = profile_settings.get("output_dir")
     else:
         mode = select_directory_mode()
         if mode == "back":
@@ -110,6 +111,7 @@ def handle_scan(profile_settings=None):
         root_path = input_directory_path()
         include_tree = None
         export_format = None
+        output_dir = None
 
     scan_results = []
 
@@ -160,15 +162,25 @@ def handle_scan(profile_settings=None):
     if export_format == "back":
         return
 
+    if output_dir is None:
+        default_dir = processed_results[0]["root"]
+        output_dir = select_output_directory(default_dir)
+
+    if output_dir is None:
+        console.print("[yellow]Операция отменена[/yellow]")
+        return
+
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
     for result in processed_results:
-        output_dir = result["root"]
         final_name = handle_filename_conflict(output_dir, filename, export_format)
 
         if final_name is None:
             console.print("[yellow]Операция отменена[/yellow]")
             return
 
-        output_file = export(result, final_name, export_format, include_tree=include_tree)
+        output_file = export(result, final_name, export_format, output_dir, include_tree)
         save_session(result, report_path=output_file)
         console.print(f"[bold green]✓ Отчёт создан: {output_file}[/bold green]")
         handle_post_export(output_file)
@@ -227,12 +239,19 @@ def handle_convert():
         return
 
     include_tree = toggle_tree_view()
-
     scan_data = apply_redaction(session_data["scan_data"])
-
     filename = input_filename()
 
-    output_dir = str(selected)
+    default_dir = str(selected)
+    output_dir = select_output_directory(default_dir)
+
+    if output_dir is None:
+        console.print("[yellow]Операция отменена[/yellow]")
+        return
+
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
     final_name = handle_filename_conflict(output_dir, filename, target_format)
 
     if final_name is None:
@@ -319,6 +338,7 @@ def handle_settings():
                 "root_path": "",
                 "include_tree": True,
                 "export_format": "txt",
+                "output_dir": None,
             }
 
             root = input_directory_path()
@@ -329,9 +349,14 @@ def handle_settings():
                 settings["mode"] = mode
 
             settings["include_tree"] = toggle_tree_view()
+
             fmt = select_export_format()
             if fmt != "back":
                 settings["export_format"] = fmt
+
+            out_dir = select_output_directory(root)
+            if out_dir is not None:
+                settings["output_dir"] = out_dir
 
             path = save_profile(name, settings)
             console.print(f"[bold green]✓ Профиль сохранён: {path}[/bold green]")
