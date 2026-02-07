@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from PySide6.QtWidgets import QMainWindow, QTabWidget
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 
 from gui.scan_tab import ScanTab
 from gui.convert_tab import ConvertTab
@@ -13,7 +15,13 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Context Builder")
         self.setMinimumSize(900, 700)
+        self._set_icon()
         self._setup_ui()
+
+    def _set_icon(self):
+        icon_path = Path(__file__).parent.parent / "icon.ico"
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
 
     def _setup_ui(self):
         tabs = QTabWidget()
