@@ -1,0 +1,7 @@
+InquirerPy>=0.3.4
+rich>=13.7
+pathlib>=1.0
+fpdf2>=2.8
+pyperclip>=1.9
+tiktoken>=0.7
+chardet>=5.2
