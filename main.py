@@ -524,7 +524,10 @@ def main():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
+    if "--gui" in sys.argv:
+        from gui import run_gui
+        run_gui()
+    elif len(sys.argv) > 1:
         from src.cli import run_cli
         run_cli()
     else:
