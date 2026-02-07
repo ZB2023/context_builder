@@ -70,12 +70,12 @@ python main.py
 ### Откроется меню с навигацией стрелками:
 
 → Сканирование (Запись)
-  Конвертация
-  Переконвертация
-  Удаление записи
-  Выбор файлов в директориях
-  Настройки
-  Выход
+&nbsp; Конвертация
+&nbsp; Переконвертация
+&nbsp; Удаление записи
+&nbsp; Выбор файлов в директориях
+&nbsp; Настройки
+&nbsp; Выход
 
 ### CLI режим
 
@@ -154,32 +154,58 @@ python main.py --path "./src" --format json --silent --output auto_report
 
 # 📁 Структура проекта
 
-context_builder/
+context\_builder/
+
 ├── main.py                    # Точка входа
+
 ├── pyproject.toml             # Метаданные
+
 ├── requirements.txt           # Зависимости
+
 ├── .gitignore
+
 ├── README.md
+
 ├── LICENSE
+
 ├── src/
-│   ├── __init__.py
+
+│   ├── \_\_init\_\_.py
+
 │   ├── menu.py                # Интерактивное меню
+
 │   ├── scanner.py             # Сканирование
+
 │   ├── session.py             # JSON-сессии
+
 │   ├── exporter.py            # Экспорт (TXT/MD/JSON)
+
 │   ├── converter.py           # Конвертация
+
 │   ├── redactor.py            # Цензура
+
 │   ├── preview.py             # Предпросмотр
+
 │   ├── config.py              # Профили
+
 │   ├── clipboard.py           # Буфер обмена
+
 │   ├── chunker.py             # Разбиение
-│   ├── token_counter.py       # Токены
+
+│   ├── token\_counter.py       # Токены
+
 │   ├── cli.py                 # CLI
+
 │   └── utils/
-│       ├── __init__.py
-│       ├── file_filter.py     # Фильтр бинарников
+
+│       ├── \_\_init\_\_.py
+
+│       ├── file\_filter.py     # Фильтр бинарников
+
 │       ├── filename.py        # Имена файлов
+
 │       ├── encoding.py        # Кодировки
+
 │       └── safety.py          # Безопасность
 
 # 🛠️ Требования
