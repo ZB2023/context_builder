@@ -27,12 +27,17 @@
 
 ```bash
 git clone https://github.com/ТВОЙ_ЛОГИН/context-builder.git
+```
+
+```bash
 cd context-builder
+```
 
 ### 2. Создай виртуальное окружение
 
 ```bash
 python -m venv venv
+```
 
 ### 3. Активируй окружение
 
@@ -40,16 +45,19 @@ Windows (PowerShell):
 
 ```bash
 venv\Scripts\Activate.ps1
+```
 
 Linux / macOS:
 
 ```bash
 source venv/bin/activate
+```
 
 ### 4. Установи зависимости
 
 ```bash
 pip install -r requirements.txt
+```
 
 # 💻 Использование
 
@@ -57,6 +65,7 @@ pip install -r requirements.txt
 
 ```bash
 python main.py
+```
 
 ### Откроется меню с навигацией стрелками:
 
@@ -71,22 +80,40 @@ python main.py
 ### CLI режим
 
 # Базовое сканирование
+
+```bash
 python main.py --path "./my_project" --format txt --output report
+```
 
 # С цензурой
+
+```bash
 python main.py --path "./src" --format md --redact --output secure_report
+```
 
 # Только предпросмотр
+
+```bash
 python main.py --path "./src" --preview
+```
 
 # Без дерева структуры
+
+```bash
 python main.py --path "./src" --format txt --no-tree
+```
 
 # Разбиение на части по 2 МБ
+
+```bash
 python main.py --path "./src" --format txt --split 2 --output big_report
+```
 
 # Тихий режим (для скриптов)
+
+```bash
 python main.py --path "./src" --format json --silent --output auto_report
+```
 
 ### CLI параметры
 
