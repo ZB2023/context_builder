@@ -2,7 +2,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-def export_txt(scan_result, filename, output_dir=None):
+def export_txt(scan_result, filename, output_dir=None, include_tree=True):
     if output_dir is None:
         output_dir = scan_result["root"]
 
@@ -10,27 +10,28 @@ def export_txt(scan_result, filename, output_dir=None):
     lines = []
 
     lines.append("=" * 70)
-    lines.append(f"  ОТЧЁТ О СТРУКТУРЕ ПРОЕКТА")
+    lines.append("  ОТЧЁТ О СТРУКТУРЕ ПРОЕКТА")
     lines.append(f"  Дата: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(f"  Корневая директория: {scan_result['root']}")
     lines.append("=" * 70)
     lines.append("")
 
-    lines.append("-" * 70)
-    lines.append("  ДЕРЕВО СТРУКТУРЫ")
-    lines.append("-" * 70)
-    lines.append("")
+    if include_tree:
+        lines.append("-" * 70)
+        lines.append("  ДЕРЕВО СТРУКТУРЫ")
+        lines.append("-" * 70)
+        lines.append("")
 
-    for item in scan_result["structure"]:
-        depth = item["path"].count("\\") + item["path"].count("/")
-        indent = "    " * depth
+        for item in scan_result["structure"]:
+            depth = item["path"].count("\\") + item["path"].count("/")
+            indent = "    " * depth
 
-        if item["type"] == "directory":
-            lines.append(f"{indent}📁 {Path(item['path']).name}/")
-        else:
-            lines.append(f"{indent}📄 {Path(item['path']).name}")
+            if item["type"] == "directory":
+                lines.append(f"{indent}📁 {Path(item['path']).name}/")
+            else:
+                lines.append(f"{indent}📄 {Path(item['path']).name}")
 
-    lines.append("")
+        lines.append("")
 
     lines.append("-" * 70)
     lines.append("  СОДЕРЖИМОЕ ФАЙЛОВ")
@@ -65,7 +66,7 @@ def export_txt(scan_result, filename, output_dir=None):
         lines.append("")
 
     lines.append("=" * 70)
-    lines.append(f"  Конец отчёта")
+    lines.append("  Конец отчёта")
     lines.append("=" * 70)
 
     content = "\n".join(lines)
@@ -74,34 +75,35 @@ def export_txt(scan_result, filename, output_dir=None):
     return output_path
 
 
-def export_md(scan_result, filename, output_dir=None):
+def export_md(scan_result, filename, output_dir=None, include_tree=True):
     if output_dir is None:
         output_dir = scan_result["root"]
 
     output_path = Path(output_dir) / f"{filename}.md"
     lines = []
 
-    lines.append(f"# Отчёт о структуре проекта")
+    lines.append("# Отчёт о структуре проекта")
     lines.append("")
     lines.append(f"- **Дата:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(f"- **Корневая директория:** `{scan_result['root']}`")
     lines.append("")
 
-    lines.append("## Дерево структуры")
-    lines.append("")
-    lines.append("```")
+    if include_tree:
+        lines.append("## Дерево структуры")
+        lines.append("")
+        lines.append("```")
 
-    for item in scan_result["structure"]:
-        depth = item["path"].count("\\") + item["path"].count("/")
-        indent = "  " * depth
+        for item in scan_result["structure"]:
+            depth = item["path"].count("\\") + item["path"].count("/")
+            indent = "  " * depth
 
-        if item["type"] == "directory":
-            lines.append(f"{indent}📁 {Path(item['path']).name}/")
-        else:
-            lines.append(f"{indent}📄 {Path(item['path']).name}")
+            if item["type"] == "directory":
+                lines.append(f"{indent}📁 {Path(item['path']).name}/")
+            else:
+                lines.append(f"{indent}📄 {Path(item['path']).name}")
 
-    lines.append("```")
-    lines.append("")
+        lines.append("```")
+        lines.append("")
 
     lines.append("## Содержимое файлов")
     lines.append("")
@@ -135,7 +137,7 @@ def export_md(scan_result, filename, output_dir=None):
     return output_path
 
 
-def export_json(scan_result, filename, output_dir=None):
+def export_json(scan_result, filename, output_dir=None, include_tree=True):
     import json
 
     if output_dir is None:
@@ -150,12 +152,15 @@ def export_json(scan_result, filename, output_dir=None):
             "total_files": len(scan_result["files"]),
             "total_skipped": len(scan_result["skipped"]),
             "total_errors": len(scan_result["errors"]),
+            "include_tree": include_tree,
         },
-        "structure": scan_result["structure"],
         "files": scan_result["files"],
         "skipped": scan_result["skipped"],
         "errors": scan_result["errors"],
     }
+
+    if include_tree:
+        export_data["structure"] = scan_result["structure"]
 
     output_path.write_text(
         json.dumps(export_data, ensure_ascii=False, indent=2),
@@ -165,7 +170,7 @@ def export_json(scan_result, filename, output_dir=None):
     return output_path
 
 
-def export(scan_result, filename, fmt, output_dir=None):
+def export(scan_result, filename, fmt, output_dir=None, include_tree=True):
     exporters = {
         "txt": export_txt,
         "md": export_md,
@@ -177,4 +182,4 @@ def export(scan_result, filename, fmt, output_dir=None):
     if exporter is None:
         raise ValueError(f"Неподдерживаемый формат: {fmt}")
 
-    return exporter(scan_result, filename, output_dir)
+    return exporter(scan_result, filename, output_dir, include_tree)

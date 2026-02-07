@@ -14,14 +14,44 @@ from src.menu import (
     select_multiple_directories,
     select_session,
     select_modification_action,
+    select_report_files,
+    toggle_tree_view,
+    select_overwrite_action,
 )
 from src.scanner import scan_directory, get_subdirectories, build_tree_view
-from src.session import save_session, load_session, list_sessions_in_directory
+from src.session import (
+    save_session,
+    load_session,
+    list_sessions_in_directory,
+    find_report_files,
+)
 from src.preview import show_preview
 from src.exporter import export
 from src.converter import convert_from_session, detect_modification
+from src.utils.filename import resolve_filename, generate_unique_filename
 
 console = Console()
+
+
+def handle_filename_conflict(directory, filename, extension):
+    resolved = resolve_filename(directory, filename, extension)
+
+    if resolved is not None:
+        return resolved
+
+    existing = Path(directory) / f"{filename}.{extension}"
+    action = select_overwrite_action(existing.name)
+
+    if action == "overwrite":
+        return filename
+
+    if action == "rename":
+        return generate_unique_filename(directory, filename, extension)
+
+    if action == "new_name":
+        return input_filename()
+
+    return None
 
 
 def handle_scan():
@@ -64,6 +94,7 @@ def handle_scan():
         console.print("[yellow]Операция отменена[/yellow]")
         return
 
+    include_tree = toggle_tree_view()
     filename = input_filename()
     export_format = select_export_format()
 
@@ -71,7 +102,14 @@ def handle_scan():
         return
 
     for result in scan_results:
-        output_file = export(result, filename, export_format)
+        output_dir = result["root"]
+        final_name = handle_filename_conflict(output_dir, filename, export_format)
+
+        if final_name is None:
+            console.print("[yellow]Операция отменена[/yellow]")
+            return
+
+        output_file = export(result, final_name, export_format, include_tree=include_tree)
         save_session(result, report_path=output_file)
         console.print(f"[bold green]✓ Отчёт создан: {output_file}[/bold green]")
 
@@ -128,10 +166,20 @@ def handle_convert():
     if target_format == "back":
         return
 
+    include_tree = toggle_tree_view()
     filename = input_filename()
-    output_file = export(session_data["scan_data"], filename, target_format, str(selected))
 
-    save_session(session_data["scan_data"], str(selected), output_file)
+    output_dir = str(selected)
+    final_name = handle_filename_conflict(output_dir, filename, target_format)
+
+    if final_name is None:
+        console.print("[yellow]Операция отменена[/yellow]")
+        return
+
+    output_file = export(
+        session_data["scan_data"], final_name, target_format, output_dir, include_tree
+    )
+    save_session(session_data["scan_data"], output_dir, output_file)
     console.print(f"[bold green]✓ Конвертация завершена: {output_file}[/bold green]")
 
 
@@ -154,9 +202,6 @@ def handle_delete():
 
     if selected == "back" or selected is None:
         return
-
-    from src.session import find_report_files
-    from src.menu import select_report_files
 
     report_files = find_report_files(selected)
 

@@ -165,6 +165,7 @@ def select_modification_action():
         pointer="→",
     ).execute()
 
+
 def select_report_files(files):
     if not files:
         console.print("[bold red]Нет файлов для выбора[/bold red]")
@@ -177,4 +178,26 @@ def select_report_files(files):
         choices=choices,
         validate=lambda result: len(result) > 0,
         invalid_message="Выберите хотя бы один файл",
+    ).execute()
+
+
+def toggle_tree_view():
+    return inquirer.confirm(
+        message="Включить дерево структуры в отчёт?",
+        default=True,
+    ).execute()
+
+
+def select_overwrite_action(filepath):
+    choices = [
+        {"name": "Перезаписать файл", "value": "overwrite"},
+        {"name": "Добавить номер к имени", "value": "rename"},
+        {"name": "Ввести другое имя", "value": "new_name"},
+        {"name": "← Отмена", "value": "cancel"},
+    ]
+
+    return inquirer.select(
+        message=f"Файл {filepath} уже существует. Что делать?",
+        choices=choices,
+        pointer="→",
     ).execute()
