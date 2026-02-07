@@ -201,3 +201,67 @@ def select_overwrite_action(filepath):
         choices=choices,
         pointer="→",
     ).execute()
+
+
+def toggle_redaction():
+    return inquirer.confirm(
+        message="Включить цензуру конфиденциальных данных (пароли, ключи, email)?",
+        default=False,
+    ).execute()
+
+
+def select_redaction_patterns(patterns):
+    choices = [{"name": p, "value": p, "enabled": True} for p in patterns]
+
+    return inquirer.checkbox(
+        message="Выберите типы данных для цензуры (Пробел — переключить):",
+        choices=choices,
+        validate=lambda result: len(result) > 0,
+        invalid_message="Выберите хотя бы один тип",
+    ).execute()
+
+
+def select_profile(profiles):
+    if not profiles:
+        console.print("[bold red]Нет сохранённых профилей[/bold red]")
+        return None
+
+    choices = [{"name": p, "value": p} for p in profiles]
+    choices.append({"name": "← Назад", "value": "back"})
+
+    return inquirer.select(
+        message="Выберите профиль:",
+        choices=choices,
+        pointer="→",
+    ).execute()
+
+
+def input_profile_name():
+    return inquirer.text(
+        message="Название профиля:",
+        validate=lambda name: len(name.strip()) > 0,
+        invalid_message="Название не может быть пустым",
+    ).execute()
+
+
+def settings_menu():
+    choices = [
+        "Сохранить текущий профиль",
+        "Загрузить профиль",
+        "Удалить профиль",
+        "Список профилей",
+        "← Назад",
+    ]
+
+    return inquirer.select(
+        message="Настройки:",
+        choices=choices,
+        pointer="→",
+    ).execute()
+
+
+def select_copy_to_clipboard():
+    return inquirer.confirm(
+        message="Скопировать результат в буфер обмена?",
+        default=False,
+    ).execute()
