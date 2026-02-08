@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -8,7 +9,8 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QMessageBox,
     QListWidget,
-    QHBoxLayout,
+    QScrollArea,
+    QSplitter,
 )
 from PySide6.QtCore import Qt
 
@@ -21,115 +23,150 @@ class SettingsTab(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
 
-        title = QLabel("⚙️ Настройки и профили")
-        title.setObjectName("title")
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+
+        container = QWidget()
+        container.setMaximumWidth(1000)
+
+        layout = QVBoxLayout(container)
+        layout.setSpacing(8)
+        layout.setContentsMargins(16, 12, 16, 12)
+
+        title = QLabel("Настройки и профили")
+        title.setProperty("cssClass", "title")
         layout.addWidget(title)
+
+        subtitle = QLabel("Сохраняйте и загружайте конфигурации для повторяющихся задач")
+        subtitle.setProperty("cssClass", "subtitle")
+        layout.addWidget(subtitle)
 
         profiles_group = QGroupBox("Профили")
         profiles_layout = QVBoxLayout(profiles_group)
+        profiles_layout.setSpacing(4)
+        profiles_layout.setContentsMargins(10, 6, 10, 8)
 
         self.profile_list = QListWidget()
+        self.profile_list.setMinimumHeight(80)
+        self.profile_list.setMaximumHeight(150)
         profiles_layout.addWidget(self.profile_list)
 
-        self.refresh_button = QPushButton("Обновить список")
-        self.refresh_button.setProperty("cssClass", "secondary")
-        self.refresh_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.refresh_button.clicked.connect(self._refresh_profiles)
-        profiles_layout.addWidget(self.refresh_button)
-
-        name_layout = QHBoxLayout()
-        name_layout.addWidget(QLabel("Имя профиля:"))
+        nr = QHBoxLayout()
+        nr.setSpacing(8)
+        nl = QLabel("Имя")
+        nl.setProperty("cssClass", "field-label")
+        nl.setFixedWidth(30)
+        nr.addWidget(nl)
         self.profile_name_input = QLineEdit()
         self.profile_name_input.setPlaceholderText("Название нового профиля")
-        name_layout.addWidget(self.profile_name_input)
-        profiles_layout.addLayout(name_layout)
+        nr.addWidget(self.profile_name_input)
+        profiles_layout.addLayout(nr)
 
-        buttons_layout = QHBoxLayout()
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        btn_row.addStretch()
+
+        self.refresh_button = QPushButton("Обновить")
+        self.refresh_button.setProperty("cssClass", "secondary")
+        self.refresh_button.setMaximumWidth(120)
+        self.refresh_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.refresh_button.clicked.connect(self._refresh)
+        btn_row.addWidget(self.refresh_button)
 
         self.save_button = QPushButton("Сохранить")
         self.save_button.setProperty("cssClass", "success")
+        self.save_button.setMaximumWidth(120)
         self.save_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.save_button.clicked.connect(self._save_profile)
-        buttons_layout.addWidget(self.save_button)
+        self.save_button.clicked.connect(self._save)
+        btn_row.addWidget(self.save_button)
 
         self.delete_button = QPushButton("Удалить")
         self.delete_button.setProperty("cssClass", "danger")
+        self.delete_button.setMaximumWidth(120)
         self.delete_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.delete_button.clicked.connect(self._delete_profile)
-        buttons_layout.addWidget(self.delete_button)
+        self.delete_button.clicked.connect(self._delete)
+        btn_row.addWidget(self.delete_button)
 
-        profiles_layout.addLayout(buttons_layout)
+        btn_row.addStretch()
+        profiles_layout.addLayout(btn_row)
+
         layout.addWidget(profiles_group)
+        layout.addStretch(1)
 
-        info_group = QGroupBox("О программе")
-        info_layout = QVBoxLayout(info_group)
+        wrapper = QHBoxLayout()
+        wrapper.addStretch()
+        wrapper.addWidget(container)
+        wrapper.addStretch()
 
-        info_layout.addWidget(QLabel("🏗️ Context Builder v1.0.0"))
-        info_layout.addWidget(QLabel("Инструмент для сканирования и экспорта структуры проектов"))
-        info_layout.addWidget(QLabel("Python 3.10+ | PySide6 | MIT License"))
+        scroll_content = QWidget()
+        scroll_content.setLayout(wrapper)
+        scroll.setWidget(scroll_content)
 
-        layout.addWidget(info_group)
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        splitter.addWidget(scroll)
 
+        log_widget = QWidget()
+        log_l = QVBoxLayout(log_widget)
+        log_l.setContentsMargins(12, 4, 12, 4)
+        log_l.setSpacing(2)
+        lh = QHBoxLayout()
+        ll = QLabel("Лог")
+        ll.setProperty("cssClass", "field-label")
+        lh.addWidget(ll)
+        lh.addStretch()
+        cb = QPushButton("Очистить")
+        cb.setProperty("cssClass", "secondary")
+        cb.setFixedHeight(22)
+        cb.setMaximumWidth(80)
+        cb.setCursor(Qt.CursorShape.PointingHandCursor)
+        lh.addWidget(cb)
+        log_l.addLayout(lh)
         self.log = QTextEdit()
         self.log.setReadOnly(True)
-        self.log.setMaximumHeight(100)
-        layout.addWidget(self.log)
+        self.log.setPlaceholderText("Результаты операций...")
+        cb.clicked.connect(lambda: self.log.clear())
+        log_l.addWidget(self.log)
 
-        layout.addStretch()
-        self._refresh_profiles()
+        splitter.addWidget(log_widget)
+        splitter.setStretchFactor(0, 4)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([600, 100])
 
-    def _refresh_profiles(self):
+        outer.addWidget(splitter)
+        self._refresh()
+
+    def _refresh(self):
         self.profile_list.clear()
-        profiles = list_profiles()
+        for p in list_profiles():
+            self.profile_list.addItem(p)
+        self.log.append(f"Профилей: {self.profile_list.count()}")
 
-        for p in profiles:
-            self.profile_list.addItem(f"📋 {p}")
-
-        self.log.append(f"Профилей: {len(profiles)}")
-
-    def _save_profile(self):
+    def _save(self):
         name = self.profile_name_input.text().strip()
-
         if not name:
-            QMessageBox.warning(self, "Ошибка", "Введите название профиля")
+            QMessageBox.warning(self, "Ошибка", "Введите название")
             return
-
-        settings = {
-            "mode": "single",
-            "root_path": "",
-            "include_tree": True,
-            "export_format": "txt",
-            "output_dir": None,
-        }
-
-        path = save_profile(name, settings)
-        self.log.append(f"✅ Профиль сохранён: {path}")
+        settings = {"mode": "single", "root_path": "", "include_tree": True, "export_format": "txt"}
+        save_profile(name, settings)
         self.profile_name_input.clear()
-        self._refresh_profiles()
+        self.log.append(f"✓ Сохранён: {name}")
+        self._refresh()
 
-    def _delete_profile(self):
+    def _delete(self):
         current = self.profile_list.currentItem()
-
         if not current:
             QMessageBox.warning(self, "Ошибка", "Выберите профиль")
             return
-
-        name = current.text().replace("📋 ", "")
-
-        confirm = QMessageBox.question(
-            self,
-            "Подтверждение",
-            f"Удалить профиль '{name}'?",
+        name = current.text()
+        r = QMessageBox.question(
+            self, "Подтверждение", f"Удалить '{name}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
-
-        if confirm == QMessageBox.StandardButton.Yes:
-            if delete_profile(name):
-                self.log.append(f"✅ Профиль '{name}' удалён")
-            else:
-                self.log.append(f"❌ Профиль '{name}' не найден")
-
-            self._refresh_profiles()
+        if r == QMessageBox.StandardButton.Yes:
+            delete_profile(name)
+            self.log.append(f"✓ Удалён: {name}")
+            self._refresh()

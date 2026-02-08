@@ -14,7 +14,10 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QMessageBox,
     QFileDialog,
+    QScrollArea,
+    QSplitter,
 )
+from PySide6.QtCore import Qt
 
 from gui.widgets import DirectoryPicker
 
@@ -26,112 +29,201 @@ class ConvertTab(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
 
-        title = QLabel("🔄 Конвертация")
-        title.setObjectName("title")
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+
+        container = QWidget()
+        container.setMaximumWidth(1000)
+
+        layout = QVBoxLayout(container)
+        layout.setSpacing(8)
+        layout.setContentsMargins(16, 12, 16, 12)
+
+        title = QLabel("Конвертация")
+        title.setProperty("cssClass", "title")
         layout.addWidget(title)
+
+        subtitle = QLabel("Конвертируйте отчёты между форматами или извлекайте текст из PDF")
+        subtitle.setProperty("cssClass", "subtitle")
+        layout.addWidget(subtitle)
 
         source_group = QGroupBox("Источник")
         source_layout = QVBoxLayout(source_group)
+        source_layout.setSpacing(4)
+        source_layout.setContentsMargins(10, 6, 10, 8)
 
-        mode_layout = QHBoxLayout()
-        mode_layout.addWidget(QLabel("Режим:"))
+        mode_label = QLabel("Режим")
+        mode_label.setProperty("cssClass", "field-label")
+        source_layout.addWidget(mode_label)
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["Из сессии", "Из PDF файла"])
+        self.mode_combo.addItems(["Из сохранённой сессии", "Из PDF файла"])
+        self.mode_combo.setToolTip("Сессия — структурированная конвертация, PDF — извлечение текста")
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
-        mode_layout.addWidget(self.mode_combo)
-        source_layout.addLayout(mode_layout)
+        source_layout.addWidget(self.mode_combo)
 
-        self.session_picker = DirectoryPicker("Директория с сохранённой сессией...")
+        self.session_label = QLabel("Директория с сессией")
+        self.session_label.setProperty("cssClass", "field-label")
+        source_layout.addWidget(self.session_label)
+        self.session_picker = DirectoryPicker("Папка с .context_builder...")
         source_layout.addWidget(self.session_picker)
 
-        self.pdf_layout = QHBoxLayout()
+        self.pdf_label = QLabel("PDF файл")
+        self.pdf_label.setProperty("cssClass", "field-label")
+        self.pdf_label.hide()
+        source_layout.addWidget(self.pdf_label)
+
+        self.pdf_row = QWidget()
+        pdf_layout = QHBoxLayout(self.pdf_row)
+        pdf_layout.setContentsMargins(0, 0, 0, 0)
+        pdf_layout.setSpacing(8)
         self.pdf_path_input = QLineEdit()
         self.pdf_path_input.setPlaceholderText("Путь к PDF файлу...")
-        self.pdf_browse_button = QPushButton("Обзор")
-        self.pdf_browse_button.setFixedWidth(100)
-        self.pdf_browse_button.clicked.connect(self._browse_pdf)
-        self.pdf_layout.addWidget(self.pdf_path_input)
-        self.pdf_layout.addWidget(self.pdf_browse_button)
+        pdf_layout.addWidget(self.pdf_path_input)
+        self.pdf_browse = QPushButton("Обзор")
+        self.pdf_browse.setProperty("cssClass", "secondary")
+        self.pdf_browse.setMaximumWidth(100)
+        self.pdf_browse.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.pdf_browse.clicked.connect(self._browse_pdf)
+        pdf_layout.addWidget(self.pdf_browse)
+        self.pdf_row.hide()
+        source_layout.addWidget(self.pdf_row)
 
-        self.pdf_widget = QWidget()
-        self.pdf_widget.setLayout(self.pdf_layout)
-        self.pdf_widget.hide()
-        source_layout.addWidget(self.pdf_widget)
-
-        self.load_button = QPushButton("📂 Загрузить")
+        load_row = QHBoxLayout()
+        load_row.addStretch()
+        self.load_button = QPushButton("Загрузить")
+        self.load_button.setMaximumWidth(250)
+        self.load_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.load_button.clicked.connect(self._load_source)
-        source_layout.addWidget(self.load_button)
+        load_row.addWidget(self.load_button)
+        load_row.addStretch()
+        source_layout.addLayout(load_row)
 
         self.source_info = QLabel("")
-        self.source_info.setObjectName("subtitle")
+        self.source_info.setProperty("cssClass", "subtitle")
         source_layout.addWidget(self.source_info)
 
         layout.addWidget(source_group)
 
-        export_group = QGroupBox("Параметры конвертации")
-        export_layout = QVBoxLayout(export_group)
+        params_group = QGroupBox("Параметры")
+        params_layout = QVBoxLayout(params_group)
+        params_layout.setSpacing(4)
+        params_layout.setContentsMargins(10, 6, 10, 8)
 
-        format_layout = QHBoxLayout()
-        format_layout.addWidget(QLabel("Целевой формат:"))
-        self.format_combo = QComboBox()
-        self.format_combo.addItems(["txt", "md", "json", "pdf"])
-        format_layout.addWidget(self.format_combo)
-        export_layout.addLayout(format_layout)
+        row1 = QHBoxLayout()
+        row1.setSpacing(12)
 
-        name_layout = QHBoxLayout()
-        name_layout.addWidget(QLabel("Имя файла:"))
+        name_col = QVBoxLayout()
+        name_col.setSpacing(2)
+        nl = QLabel("Имя файла")
+        nl.setProperty("cssClass", "field-label")
+        name_col.addWidget(nl)
         self.filename_input = QLineEdit()
         self.filename_input.setPlaceholderText("Автоматическое имя с датой")
-        name_layout.addWidget(self.filename_input)
-        export_layout.addLayout(name_layout)
+        name_col.addWidget(self.filename_input)
+        row1.addLayout(name_col, 2)
 
-        self.output_picker = DirectoryPicker("Директория для сохранения...")
-        export_layout.addWidget(self.output_picker)
+        fmt_col = QVBoxLayout()
+        fmt_col.setSpacing(2)
+        fl = QLabel("Целевой формат")
+        fl.setProperty("cssClass", "field-label")
+        fmt_col.addWidget(fl)
+        self.format_combo = QComboBox()
+        self.format_combo.addItems(["txt", "md", "json", "pdf"])
+        fmt_col.addWidget(self.format_combo)
+        row1.addLayout(fmt_col, 1)
 
-        self.tree_check = QCheckBox("Включить дерево структуры")
+        params_layout.addLayout(row1)
+
+        sl = QLabel("Сохранить в")
+        sl.setProperty("cssClass", "field-label")
+        params_layout.addWidget(sl)
+        self.output_picker = DirectoryPicker("По умолчанию — рядом с источником")
+        params_layout.addWidget(self.output_picker)
+
+        opts = QHBoxLayout()
+        opts.setSpacing(20)
+        self.tree_check = QCheckBox("Дерево структуры")
         self.tree_check.setChecked(True)
-        export_layout.addWidget(self.tree_check)
-
+        opts.addWidget(self.tree_check)
         self.redact_check = QCheckBox("Цензура данных")
-        export_layout.addWidget(self.redact_check)
+        opts.addWidget(self.redact_check)
+        opts.addStretch()
+        params_layout.addLayout(opts)
 
-        self.convert_button = QPushButton("🔄 Конвертировать")
-        self.convert_button.setObjectName("success")
+        convert_row = QHBoxLayout()
+        convert_row.addStretch()
+        self.convert_button = QPushButton("Конвертировать")
+        self.convert_button.setProperty("cssClass", "success")
+        self.convert_button.setMaximumWidth(250)
+        self.convert_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.convert_button.setEnabled(False)
         self.convert_button.clicked.connect(self._convert)
-        export_layout.addWidget(self.convert_button)
+        convert_row.addWidget(self.convert_button)
+        convert_row.addStretch()
+        params_layout.addLayout(convert_row)
 
-        layout.addWidget(export_group)
+        layout.addWidget(params_group)
+        layout.addStretch(1)
 
+        wrapper = QHBoxLayout()
+        wrapper.addStretch()
+        wrapper.addWidget(container)
+        wrapper.addStretch()
+
+        scroll_content = QWidget()
+        scroll_content.setLayout(wrapper)
+        scroll.setWidget(scroll_content)
+
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        splitter.addWidget(scroll)
+
+        log_widget = QWidget()
+        log_l = QVBoxLayout(log_widget)
+        log_l.setContentsMargins(12, 4, 12, 4)
+        log_l.setSpacing(2)
+        lh = QHBoxLayout()
+        ll = QLabel("Лог")
+        ll.setProperty("cssClass", "field-label")
+        lh.addWidget(ll)
+        lh.addStretch()
+        cb = QPushButton("Очистить")
+        cb.setProperty("cssClass", "secondary")
+        cb.setFixedHeight(22)
+        cb.setMaximumWidth(80)
+        cb.setCursor(Qt.CursorShape.PointingHandCursor)
+        lh.addWidget(cb)
+        log_l.addLayout(lh)
         self.log = QTextEdit()
         self.log.setReadOnly(True)
-        self.log.setMaximumHeight(120)
-        self.log.setPlaceholderText("Лог операций...")
-        layout.addWidget(self.log)
+        self.log.setPlaceholderText("Результаты операций...")
+        cb.clicked.connect(lambda: self.log.clear())
+        log_l.addWidget(self.log)
 
-        layout.addStretch()
+        splitter.addWidget(log_widget)
+        splitter.setStretchFactor(0, 4)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([600, 100])
+
+        outer.addWidget(splitter)
 
     def _on_mode_changed(self, index):
-        if index == 0:
-            self.session_picker.setVisible(True)
-            self.pdf_widget.hide()
-        else:
-            self.session_picker.setVisible(False)
-            self.pdf_widget.show()
-
+        is_session = index == 0
+        self.session_label.setVisible(is_session)
+        self.session_picker.setVisible(is_session)
+        self.pdf_label.setVisible(not is_session)
+        self.pdf_row.setVisible(not is_session)
         self.convert_button.setEnabled(False)
         self.source_info.setText("")
         self.session_data = None
 
     def _browse_pdf(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Выберите PDF файл", "", "PDF Files (*.pdf)"
-        )
-        if file_path:
-            self.pdf_path_input.setText(file_path)
+        path, _ = QFileDialog.getOpenFileName(self, "PDF файл", "", "PDF (*.pdf)")
+        if path:
+            self.pdf_path_input.setText(path)
 
     def _load_source(self):
         if self.mode_combo.currentIndex() == 0:
@@ -141,116 +233,91 @@ class ConvertTab(QWidget):
 
     def _load_session(self):
         path = self.session_picker.get_path()
-
         if not path:
-            QMessageBox.warning(self, "Ошибка", "Укажите директорию с сессией")
+            QMessageBox.warning(self, "Ошибка", "Укажите директорию")
             return
-
         from src.session import load_session
-
         self.session_data = load_session(path)
-
-        if self.session_data is None:
-            self.source_info.setText("❌ Сессия не найдена")
-            self.source_info.setStyleSheet("color: #f38ba8;")
-            self.log.append(f"❌ Сессия не найдена: {path}")
+        if not self.session_data:
+            self.source_info.setText("Сессия не найдена")
+            self.source_info.setProperty("cssClass", "error")
+            self.source_info.style().unpolish(self.source_info)
+            self.source_info.style().polish(self.source_info)
+            self.log.append(f"✗ Сессия не найдена: {path}")
             return
-
-        files_count = len(self.session_data["scan_data"]["files"])
-        created = self.session_data.get("created_at", "неизвестно")
-
-        self.source_info.setText(f"✅ Загружена | Файлов: {files_count} | Создана: {created}")
-        self.source_info.setStyleSheet("color: #a6e3a1;")
+        n = len(self.session_data["scan_data"]["files"])
+        self.source_info.setText(f"Загружено: {n} файлов")
+        self.source_info.setProperty("cssClass", "success")
+        self.source_info.style().unpolish(self.source_info)
+        self.source_info.style().polish(self.source_info)
         self.convert_button.setEnabled(True)
-        self.log.append(f"✅ Сессия загружена: {path}")
+        self.log.append(f"✓ Сессия: {path}")
 
     def _load_pdf(self):
         path = self.pdf_path_input.text().strip()
-
         if not path:
-            QMessageBox.warning(self, "Ошибка", "Укажите путь к PDF файлу")
+            QMessageBox.warning(self, "Ошибка", "Укажите PDF файл")
             return
-
-        pdf_file = Path(path)
-
-        if not pdf_file.exists():
-            self.source_info.setText("❌ Файл не найден")
-            self.source_info.setStyleSheet("color: #f38ba8;")
+        pf = Path(path)
+        if not pf.exists() or pf.suffix.lower() != ".pdf":
+            self.source_info.setText("Файл не найден или не PDF")
+            self.source_info.setProperty("cssClass", "error")
+            self.source_info.style().unpolish(self.source_info)
+            self.source_info.style().polish(self.source_info)
             return
-
-        if pdf_file.suffix.lower() != ".pdf":
-            self.source_info.setText("❌ Это не PDF файл")
-            self.source_info.setStyleSheet("color: #f38ba8;")
-            return
-
-        size_kb = pdf_file.stat().st_size / 1024
-        self.source_info.setText(f"✅ PDF загружен | {pdf_file.name} | {size_kb:.1f} KB")
-        self.source_info.setStyleSheet("color: #a6e3a1;")
+        kb = pf.stat().st_size / 1024
+        self.source_info.setText(f"PDF: {pf.name} ({kb:.1f} KB)")
+        self.source_info.setProperty("cssClass", "success")
+        self.source_info.style().unpolish(self.source_info)
+        self.source_info.style().polish(self.source_info)
         self.convert_button.setEnabled(True)
-        self.log.append(f"✅ PDF загружен: {path}")
+        self.log.append(f"✓ PDF: {path}")
 
     def _convert(self):
         filename = self.filename_input.text().strip()
         if not filename:
             filename = f"convert_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-
         fmt = self.format_combo.currentText()
-
         if self.mode_combo.currentIndex() == 0:
-            self._convert_from_session(filename, fmt)
+            self._convert_session(filename, fmt)
         else:
-            self._convert_from_pdf(filename, fmt)
+            self._convert_pdf(filename, fmt)
 
-    def _convert_from_session(self, filename, fmt):
-        if self.session_data is None:
-            QMessageBox.warning(self, "Ошибка", "Сначала загрузите сессию")
+    def _convert_session(self, filename, fmt):
+        if not self.session_data:
             return
-
         output_dir = self.output_picker.get_path() or self.session_picker.get_path()
-        include_tree = self.tree_check.isChecked()
+        tree = self.tree_check.isChecked()
         redact = self.redact_check.isChecked()
-
         try:
             from src.exporter import export
             from src.session import save_session
-
-            scan_data = self.session_data["scan_data"]
-
+            data = self.session_data["scan_data"]
             if redact:
                 from src.redactor import redact_scan_result, get_available_patterns
-                patterns = get_available_patterns()
-                scan_data, findings = redact_scan_result(scan_data, patterns)
-                if findings:
-                    self.log.append("⚠ Цензура применена")
-
-            output_file = export(scan_data, filename, fmt, output_dir, include_tree)
-            save_session(scan_data, output_dir, output_file)
-
-            self.log.append(f"✅ Конвертация завершена: {output_file}")
-            QMessageBox.information(self, "Готово", f"Файл создан:\n{output_file}")
+                data, _ = redact_scan_result(data, get_available_patterns())
+            out = export(data, filename, fmt, output_dir, tree)
+            save_session(data, output_dir, out)
+            self.log.append(f"✓ {out}")
+            QMessageBox.information(self, "Готово", f"Создан:\n{out}")
         except Exception as e:
-            self.log.append(f"❌ Ошибка: {e}")
+            self.log.append(f"✗ {e}")
             QMessageBox.critical(self, "Ошибка", str(e))
 
-    def _convert_from_pdf(self, filename, fmt):
-        pdf_path = self.pdf_path_input.text().strip()
-        output_dir = self.output_picker.get_path() or str(Path(pdf_path).parent)
-
+    def _convert_pdf(self, filename, fmt):
+        path = self.pdf_path_input.text().strip()
+        output_dir = self.output_picker.get_path() or str(Path(path).parent)
         if fmt == "pdf":
-            QMessageBox.warning(self, "Ошибка", "Нельзя конвертировать PDF в PDF")
+            QMessageBox.warning(self, "Ошибка", "PDF → PDF невозможно")
             return
-
         try:
             from src.converter import convert_pdf_to_format
-
-            output_file = convert_pdf_to_format(pdf_path, filename, fmt, output_dir)
-
-            if output_file:
-                self.log.append(f"✅ PDF конвертирован: {output_file}")
-                QMessageBox.information(self, "Готово", f"Файл создан:\n{output_file}")
+            out = convert_pdf_to_format(path, filename, fmt, output_dir)
+            if out:
+                self.log.append(f"✓ {out}")
+                QMessageBox.information(self, "Готово", f"Создан:\n{out}")
             else:
-                self.log.append("❌ Ошибка конвертации PDF")
-                QMessageBox.critical(self, "Ошибка", "Не удалось конвертировать PDF")
+                self.log.append("✗ Ошибка конвертации")
         except Exception as e:
-            self.log.append(f"❌ Ошибка: {e}")
+            self.log.append(f"✗ {e}")
             QMessageBox.critical(self, "Ошибка", str(e))
