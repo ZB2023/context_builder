@@ -1,150 +1,216 @@
-from PySide6.QtGui import QPainter, QPixmap, QIcon, QColor, QPen, QFont, QPainterPath
-from PySide6.QtCore import Qt, QRect, QPoint
+from PySide6.QtGui import QPainter, QPixmap, QIcon, QColor, QPen, QPainterPath
+from PySide6.QtCore import Qt, QPointF, QRectF
+import math
 
 
-def _create_pixmap(size=64):
-    pixmap = QPixmap(size, size)
-    pixmap.fill(Qt.GlobalColor.transparent)
-    return pixmap
+def _pixmap(size=48):
+    p = QPixmap(size, size)
+    p.fill(Qt.GlobalColor.transparent)
+    return p
 
 
-def icon_scan(color="#89b4fa", size=64):
-    pixmap = _create_pixmap(size)
+def _painter(pixmap):
     p = QPainter(pixmap)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    pen = QPen(QColor(color), size * 0.08)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+    return p
+
+
+def icon_scan(color="#89b4fa", size=48):
+    px = _pixmap(size)
+    p = _painter(px)
+    s = size
+    w = s * 0.06
+
+    pen = QPen(QColor(color), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
     p.setPen(pen)
     p.setBrush(Qt.BrushStyle.NoBrush)
 
-    m = size * 0.15
-    p.drawRoundedRect(int(m), int(m), int(size - 2 * m), int(size - 2 * m), size * 0.1, size * 0.1)
+    m = s * 0.18
+    rect = QRectF(m, m, s - 2 * m, s - 2 * m)
+    p.drawRoundedRect(rect, s * 0.08, s * 0.08)
 
-    y1, y2, y3 = size * 0.35, size * 0.5, size * 0.65
-    x1, x2 = size * 0.3, size * 0.7
-    p.drawLine(int(x1), int(y1), int(x2), int(y1))
-    p.drawLine(int(x1), int(y2), int(x2), int(y2))
-    p.drawLine(int(x1), int(y3), int(size * 0.55), int(y3))
+    pen.setWidth(max(1, int(w * 0.8)))
+    p.setPen(pen)
+    x1, x2 = s * 0.32, s * 0.68
+    for y_ratio in [0.38, 0.50, 0.62]:
+        y = s * y_ratio
+        end = x2 if y_ratio != 0.62 else s * 0.55
+        p.drawLine(QPointF(x1, y), QPointF(end, y))
 
     p.end()
-    return QIcon(pixmap)
+    return QIcon(px)
 
 
-def icon_convert(color="#89b4fa", size=64):
-    pixmap = _create_pixmap(size)
-    p = QPainter(pixmap)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    pen = QPen(QColor(color), size * 0.08)
+def icon_convert(color="#89b4fa", size=48):
+    px = _pixmap(size)
+    p = _painter(px)
+    s = size
+    w = s * 0.06
+
+    pen = QPen(QColor(color), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
     p.setPen(pen)
 
-    cx, cy = size * 0.5, size * 0.5
-    r = size * 0.3
+    cx, cy = s * 0.5, s * 0.5
+    r = s * 0.28
 
-    path1 = QPainterPath()
-    path1.moveTo(cx + r * 0.7, cy - r * 0.7)
-    path1.arcTo(cx - r, cy - r, r * 2, r * 2, 45, 270)
-    p.drawPath(path1)
-
-    p.drawLine(int(cx + r * 0.5), int(cy - r * 1.0), int(cx + r * 0.7), int(cy - r * 0.7))
-    p.drawLine(int(cx + r * 1.0), int(cy - r * 0.5), int(cx + r * 0.7), int(cy - r * 0.7))
-
-    p.end()
-    return QIcon(pixmap)
-
-
-def icon_delete(color="#f38ba8", size=64):
-    pixmap = _create_pixmap(size)
-    p = QPainter(pixmap)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    pen = QPen(QColor(color), size * 0.08)
-    p.setPen(pen)
-
-    m = size * 0.25
-    p.drawLine(int(m), int(m), int(size - m), int(size - m))
-    p.drawLine(int(size - m), int(m), int(m), int(size - m))
-
-    p.end()
-    return QIcon(pixmap)
-
-
-def icon_files(color="#89b4fa", size=64):
-    pixmap = _create_pixmap(size)
-    p = QPainter(pixmap)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    pen = QPen(QColor(color), size * 0.07)
-    p.setPen(pen)
-    p.setBrush(Qt.BrushStyle.NoBrush)
-
-    p.drawRoundedRect(int(size * 0.2), int(size * 0.25), int(size * 0.45), int(size * 0.55), 4, 4)
-    p.drawRoundedRect(int(size * 0.35), int(size * 0.15), int(size * 0.45), int(size * 0.55), 4, 4)
-
-    p.end()
-    return QIcon(pixmap)
-
-
-def icon_settings(color="#89b4fa", size=64):
-    pixmap = _create_pixmap(size)
-    p = QPainter(pixmap)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    pen = QPen(QColor(color), size * 0.07)
-    p.setPen(pen)
-
-    cx, cy = size * 0.5, size * 0.5
-    r_out, r_in = size * 0.35, size * 0.15
-    p.drawEllipse(QPoint(int(cx), int(cy)), int(r_in), int(r_in))
-
-    for i in range(6):
-        import math
-        angle = math.radians(i * 60)
-        x1 = cx + r_in * 0.9 * math.cos(angle)
-        y1 = cy + r_in * 0.9 * math.sin(angle)
-        x2 = cx + r_out * math.cos(angle)
-        y2 = cy + r_out * math.sin(angle)
-        p.drawLine(int(x1), int(y1), int(x2), int(y2))
-
-    p.end()
-    return QIcon(pixmap)
-
-
-def icon_about(color="#89b4fa", size=64):
-    pixmap = _create_pixmap(size)
-    p = QPainter(pixmap)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-    pen = QPen(QColor(color), size * 0.07)
-    p.setPen(pen)
-    p.setBrush(Qt.BrushStyle.NoBrush)
-
-    cx, cy = size * 0.5, size * 0.5
-    r = size * 0.35
-    p.drawEllipse(QPoint(int(cx), int(cy)), int(r), int(r))
-
-    p.setPen(QPen(QColor(color), size * 0.09))
-    p.drawLine(int(cx), int(cy - r * 0.1), int(cx), int(cy + r * 0.35))
-    p.drawPoint(int(cx), int(cy - r * 0.4))
-
-    p.end()
-    return QIcon(pixmap)
-
-
-def icon_theme(color="#89b4fa", size=64):
-    pixmap = _create_pixmap(size)
-    p = QPainter(pixmap)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-    cx, cy = size * 0.5, size * 0.5
-    r = size * 0.3
-
-    p.setPen(QPen(QColor(color), size * 0.07))
-    p.setBrush(Qt.BrushStyle.NoBrush)
-    p.drawEllipse(QPoint(int(cx), int(cy)), int(r), int(r))
-
-    p.setPen(Qt.PenStyle.NoPen)
-    p.setBrush(QColor(color))
     path = QPainterPath()
-    path.moveTo(cx, cy - r)
-    path.arcTo(cx - r, cy - r, r * 2, r * 2, 90, 180)
-    path.lineTo(cx, cy - r)
+    path.arcMoveTo(cx - r, cy - r, r * 2, r * 2, 60)
+    path.arcTo(cx - r, cy - r, r * 2, r * 2, 60, 240)
     p.drawPath(path)
 
+    end = path.currentPosition()
+    a = math.radians(60 + 240)
+    arr = s * 0.1
+    p.drawLine(end, QPointF(end.x() + arr * math.cos(a - 0.6), end.y() - arr * math.sin(a - 0.6)))
+    p.drawLine(end, QPointF(end.x() + arr * math.cos(a + 0.6), end.y() - arr * math.sin(a + 0.6)))
+
     p.end()
-    return QIcon(pixmap)
+    return QIcon(px)
+
+
+def icon_delete(color="#f38ba8", size=48):
+    px = _pixmap(size)
+    p = _painter(px)
+    s = size
+    w = s * 0.06
+
+    pen = QPen(QColor(color), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+    p.setPen(pen)
+
+    cx = s * 0.5
+    p.drawLine(QPointF(s * 0.3, s * 0.22), QPointF(s * 0.7, s * 0.22))
+    p.drawLine(QPointF(cx - s * 0.05, s * 0.15), QPointF(cx + s * 0.05, s * 0.15))
+
+    body = QRectF(s * 0.28, s * 0.26, s * 0.44, s * 0.52)
+    p.drawRoundedRect(body, s * 0.04, s * 0.04)
+
+    pen.setWidth(max(1, int(w * 0.7)))
+    p.setPen(pen)
+    for x_ratio in [0.4, 0.5, 0.6]:
+        x = s * x_ratio
+        p.drawLine(QPointF(x, s * 0.36), QPointF(x, s * 0.68))
+
+    p.end()
+    return QIcon(px)
+
+
+def icon_files(color="#89b4fa", size=48):
+    px = _pixmap(size)
+    p = _painter(px)
+    s = size
+    w = s * 0.06
+
+    pen = QPen(QColor(color), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+
+    r1 = QRectF(s * 0.15, s * 0.25, s * 0.45, s * 0.55)
+    p.drawRoundedRect(r1, s * 0.06, s * 0.06)
+
+    r2 = QRectF(s * 0.30, s * 0.12, s * 0.45, s * 0.55)
+
+    c = QColor(color)
+    c.setAlpha(60)
+    p.setBrush(c)
+    p.drawRoundedRect(r2, s * 0.06, s * 0.06)
+
+    p.end()
+    return QIcon(px)
+
+
+def icon_settings(color="#89b4fa", size=48):
+    px = _pixmap(size)
+    p = _painter(px)
+    s = size
+    w = s * 0.055
+
+    pen = QPen(QColor(color), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+
+    cx, cy = s * 0.5, s * 0.5
+    r_inner = s * 0.12
+    r_outer = s * 0.32
+
+    p.drawEllipse(QPointF(cx, cy), r_inner, r_inner)
+
+    teeth = 8
+    for i in range(teeth):
+        a = math.radians(i * (360 / teeth))
+        x1 = cx + r_inner * 1.3 * math.cos(a)
+        y1 = cy + r_inner * 1.3 * math.sin(a)
+        x2 = cx + r_outer * math.cos(a)
+        y2 = cy + r_outer * math.sin(a)
+        p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+    p.end()
+    return QIcon(px)
+
+
+def icon_about(color="#89b4fa", size=48):
+    px = _pixmap(size)
+    p = _painter(px)
+    s = size
+    w = s * 0.06
+
+    pen = QPen(QColor(color), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+
+    cx, cy = s * 0.5, s * 0.5
+    r = s * 0.32
+    p.drawEllipse(QPointF(cx, cy), r, r)
+
+    dot_w = s * 0.08
+    pen2 = QPen(QColor(color), dot_w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+    p.setPen(pen2)
+    p.drawPoint(QPointF(cx, cy - r * 0.38))
+
+    pen3 = QPen(QColor(color), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+    p.setPen(pen3)
+    p.drawLine(QPointF(cx, cy - r * 0.08), QPointF(cx, cy + r * 0.42))
+
+    p.end()
+    return QIcon(px)
+
+
+def icon_theme_toggle(is_dark=True, color="#89b4fa", size=48):
+    px = _pixmap(size)
+    p = _painter(px)
+    s = size
+    w = s * 0.06
+
+    pen = QPen(QColor(color), w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+    p.setPen(pen)
+
+    cx, cy = s * 0.5, s * 0.5
+    r = s * 0.28
+
+    if is_dark:
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawEllipse(QPointF(cx, cy), r, r)
+
+        ray_len = s * 0.1
+        ray_start = r + s * 0.04
+        for i in range(8):
+            a = math.radians(i * 45)
+            x1 = cx + ray_start * math.cos(a)
+            y1 = cy + ray_start * math.sin(a)
+            x2 = cx + (ray_start + ray_len) * math.cos(a)
+            y2 = cy + (ray_start + ray_len) * math.sin(a)
+            p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+    else:
+        p.setBrush(Qt.BrushStyle.NoBrush)
+
+        path = QPainterPath()
+        path.arcMoveTo(cx - r, cy - r, r * 2, r * 2, -40)
+        path.arcTo(cx - r, cy - r, r * 2, r * 2, -40, 260)
+
+        offset = r * 0.6
+        path.arcTo(cx - r + offset, cy - r - offset * 0.2, r * 1.6, r * 1.6, 200, -220)
+
+        p.drawPath(path)
+
+    p.end()
+    return QIcon(px)
