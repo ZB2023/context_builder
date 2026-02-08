@@ -14,13 +14,12 @@ class ScanWorker(QThread):
     def run(self):
         try:
             from src.scanner import scan_directory
+
             self.progress.emit("Сканирование начато...")
             result = scan_directory(self.path, self.max_file_size)
-
             if result is None:
                 self.error.emit("Директория не найдена или недоступна")
                 return
-
             self.progress.emit(f"Найдено файлов: {len(result['files'])}")
             self.finished_signal.emit(result)
         except Exception as e:
@@ -48,7 +47,6 @@ class ExportWorker(QThread):
             from src.redactor import redact_scan_result
 
             data = self.scan_result
-
             if self.redact:
                 data, _ = redact_scan_result(data, self.patterns)
 

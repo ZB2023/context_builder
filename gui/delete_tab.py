@@ -35,11 +35,10 @@ class DeleteTab(QWidget):
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
 
         container = QWidget()
-        container.setMaximumWidth(1000)
-
+        container.setMaximumWidth(960)
         layout = QVBoxLayout(container)
-        layout.setSpacing(8)
-        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(12)
+        layout.setContentsMargins(24, 20, 24, 20)
 
         title = QLabel("Удаление записей")
         title.setProperty("cssClass", "title")
@@ -49,21 +48,27 @@ class DeleteTab(QWidget):
         subtitle.setProperty("cssClass", "subtitle")
         layout.addWidget(subtitle)
 
+        layout.addSpacing(4)
+
         source_group = QGroupBox("Директория")
         source_layout = QVBoxLayout(source_group)
-        source_layout.setSpacing(4)
-        source_layout.setContentsMargins(10, 6, 10, 8)
+        source_layout.setSpacing(8)
+        source_layout.setContentsMargins(16, 16, 16, 16)
 
         dl = QLabel("Папка с отчётами")
         dl.setProperty("cssClass", "field-label")
         source_layout.addWidget(dl)
+
         self.dir_picker = DirectoryPicker("Укажите папку с отчётами...")
         source_layout.addWidget(self.dir_picker)
 
+        source_layout.addSpacing(4)
+
         sr = QHBoxLayout()
         sr.addStretch()
-        self.search_button = QPushButton("Найти отчёты")
-        self.search_button.setMaximumWidth(250)
+        self.search_button = QPushButton("  Найти отчёты  ")
+        self.search_button.setMinimumWidth(200)
+        self.search_button.setMinimumHeight(36)
         self.search_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.search_button.clicked.connect(self._search_files)
         sr.addWidget(self.search_button)
@@ -74,24 +79,27 @@ class DeleteTab(QWidget):
 
         files_group = QGroupBox("Найденные файлы")
         files_layout = QVBoxLayout(files_group)
-        files_layout.setSpacing(4)
-        files_layout.setContentsMargins(10, 6, 10, 8)
+        files_layout.setSpacing(8)
+        files_layout.setContentsMargins(16, 16, 16, 16)
 
         self.file_list = QListWidget()
         self.file_list.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         self.file_list.setMinimumHeight(100)
-        self.file_list.setMaximumHeight(200)
+        self.file_list.setMaximumHeight(220)
         files_layout.addWidget(self.file_list)
 
         self.delete_session_check = QCheckBox("Удалить данные сессии (.context_builder)")
         self.delete_session_check.setToolTip("Удалит также внутренний JSON-слепок проекта")
         files_layout.addWidget(self.delete_session_check)
 
+        files_layout.addSpacing(4)
+
         dr = QHBoxLayout()
         dr.addStretch()
-        self.delete_button = QPushButton("Удалить выбранные")
+        self.delete_button = QPushButton("  Удалить выбранные  ")
         self.delete_button.setProperty("cssClass", "danger")
-        self.delete_button.setMaximumWidth(250)
+        self.delete_button.setMinimumWidth(200)
+        self.delete_button.setMinimumHeight(36)
         self.delete_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.delete_button.setEnabled(False)
         self.delete_button.clicked.connect(self._delete_files)
@@ -116,8 +124,9 @@ class DeleteTab(QWidget):
 
         log_widget = QWidget()
         log_l = QVBoxLayout(log_widget)
-        log_l.setContentsMargins(12, 4, 12, 4)
-        log_l.setSpacing(2)
+        log_l.setContentsMargins(16, 8, 16, 8)
+        log_l.setSpacing(4)
+
         lh = QHBoxLayout()
         ll = QLabel("Лог")
         ll.setProperty("cssClass", "field-label")
@@ -125,21 +134,22 @@ class DeleteTab(QWidget):
         lh.addStretch()
         cb = QPushButton("Очистить")
         cb.setProperty("cssClass", "secondary")
-        cb.setFixedHeight(22)
-        cb.setMaximumWidth(80)
+        cb.setFixedHeight(24)
+        cb.setMaximumWidth(90)
         cb.setCursor(Qt.CursorShape.PointingHandCursor)
         lh.addWidget(cb)
         log_l.addLayout(lh)
+
         self.log = QTextEdit()
         self.log.setReadOnly(True)
-        self.log.setPlaceholderText("Результаты операций...")
+        self.log.setPlaceholderText("Результаты операций появятся здесь...")
         cb.clicked.connect(lambda: self.log.clear())
         log_l.addWidget(self.log)
 
         splitter.addWidget(log_widget)
         splitter.setStretchFactor(0, 4)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([600, 100])
+        splitter.setSizes([600, 120])
 
         outer.addWidget(splitter)
 
@@ -148,18 +158,23 @@ class DeleteTab(QWidget):
         if not path:
             QMessageBox.warning(self, "Ошибка", "Укажите директорию")
             return
+
         from src.session import find_report_files
+
         files = find_report_files(path)
         self.file_list.clear()
+
         if not files:
             self.log.append(f"Отчёты не найдены: {path}")
             self.delete_button.setEnabled(False)
             return
+
         for f in files:
             kb = f.stat().st_size / 1024
             item = QListWidgetItem(f"{f.name}  ({kb:.1f} KB)")
             item.setData(256, f)
             self.file_list.addItem(item)
+
         self.delete_button.setEnabled(True)
         self.log.append(f"Найдено: {len(files)} файлов")
 
@@ -168,14 +183,18 @@ class DeleteTab(QWidget):
         if not selected:
             QMessageBox.warning(self, "Ошибка", "Выберите файлы")
             return
+
         names = [i.data(256).name for i in selected]
         r = QMessageBox.question(
-            self, "Подтверждение",
+            self,
+            "Подтверждение",
             f"Удалить {len(names)} файлов?\n\n" + "\n".join(names),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
+
         if r != QMessageBox.StandardButton.Yes:
             return
+
         for item in selected:
             fp = item.data(256)
             try:
@@ -183,6 +202,7 @@ class DeleteTab(QWidget):
                 self.log.append(f"✓ {fp.name}")
             except OSError as e:
                 self.log.append(f"✗ {fp.name}: {e}")
+
         if self.delete_session_check.isChecked():
             path = self.dir_picker.get_path()
             sd = Path(path) / ".context_builder"
@@ -194,4 +214,5 @@ class DeleteTab(QWidget):
                     self.log.append("✓ Сессия удалена")
                 except OSError as e:
                     self.log.append(f"✗ Сессия: {e}")
+
         self._search_files()

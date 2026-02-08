@@ -37,11 +37,10 @@ class ConvertTab(QWidget):
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
 
         container = QWidget()
-        container.setMaximumWidth(1000)
-
+        container.setMaximumWidth(960)
         layout = QVBoxLayout(container)
-        layout.setSpacing(8)
-        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(12)
+        layout.setContentsMargins(24, 20, 24, 20)
 
         title = QLabel("Конвертация")
         title.setProperty("cssClass", "title")
@@ -51,14 +50,17 @@ class ConvertTab(QWidget):
         subtitle.setProperty("cssClass", "subtitle")
         layout.addWidget(subtitle)
 
+        layout.addSpacing(4)
+
         source_group = QGroupBox("Источник")
         source_layout = QVBoxLayout(source_group)
-        source_layout.setSpacing(4)
-        source_layout.setContentsMargins(10, 6, 10, 8)
+        source_layout.setSpacing(8)
+        source_layout.setContentsMargins(16, 16, 16, 16)
 
         mode_label = QLabel("Режим")
         mode_label.setProperty("cssClass", "field-label")
         source_layout.addWidget(mode_label)
+
         self.mode_combo = QComboBox()
         self.mode_combo.addItems(["Из сохранённой сессии", "Из PDF файла"])
         self.mode_combo.setToolTip("Сессия — структурированная конвертация, PDF — извлечение текста")
@@ -68,6 +70,7 @@ class ConvertTab(QWidget):
         self.session_label = QLabel("Директория с сессией")
         self.session_label.setProperty("cssClass", "field-label")
         source_layout.addWidget(self.session_label)
+
         self.session_picker = DirectoryPicker("Папка с .context_builder...")
         source_layout.addWidget(self.session_picker)
 
@@ -80,22 +83,29 @@ class ConvertTab(QWidget):
         pdf_layout = QHBoxLayout(self.pdf_row)
         pdf_layout.setContentsMargins(0, 0, 0, 0)
         pdf_layout.setSpacing(8)
+
         self.pdf_path_input = QLineEdit()
         self.pdf_path_input.setPlaceholderText("Путь к PDF файлу...")
         pdf_layout.addWidget(self.pdf_path_input)
+
         self.pdf_browse = QPushButton("Обзор")
         self.pdf_browse.setProperty("cssClass", "secondary")
-        self.pdf_browse.setMaximumWidth(100)
+        self.pdf_browse.setMinimumWidth(80)
+        self.pdf_browse.setMinimumHeight(34)
         self.pdf_browse.setCursor(Qt.CursorShape.PointingHandCursor)
         self.pdf_browse.clicked.connect(self._browse_pdf)
         pdf_layout.addWidget(self.pdf_browse)
+
         self.pdf_row.hide()
         source_layout.addWidget(self.pdf_row)
 
+        source_layout.addSpacing(4)
+
         load_row = QHBoxLayout()
         load_row.addStretch()
-        self.load_button = QPushButton("Загрузить")
-        self.load_button.setMaximumWidth(250)
+        self.load_button = QPushButton("  Загрузить  ")
+        self.load_button.setMinimumWidth(200)
+        self.load_button.setMinimumHeight(36)
         self.load_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.load_button.clicked.connect(self._load_source)
         load_row.addWidget(self.load_button)
@@ -110,24 +120,24 @@ class ConvertTab(QWidget):
 
         params_group = QGroupBox("Параметры")
         params_layout = QVBoxLayout(params_group)
-        params_layout.setSpacing(4)
-        params_layout.setContentsMargins(10, 6, 10, 8)
+        params_layout.setSpacing(10)
+        params_layout.setContentsMargins(16, 16, 16, 16)
 
         row1 = QHBoxLayout()
-        row1.setSpacing(12)
+        row1.setSpacing(16)
 
         name_col = QVBoxLayout()
-        name_col.setSpacing(2)
+        name_col.setSpacing(4)
         nl = QLabel("Имя файла")
         nl.setProperty("cssClass", "field-label")
         name_col.addWidget(nl)
         self.filename_input = QLineEdit()
         self.filename_input.setPlaceholderText("Автоматическое имя с датой")
         name_col.addWidget(self.filename_input)
-        row1.addLayout(name_col, 2)
+        row1.addLayout(name_col, 3)
 
         fmt_col = QVBoxLayout()
-        fmt_col.setSpacing(2)
+        fmt_col.setSpacing(4)
         fl = QLabel("Целевой формат")
         fl.setProperty("cssClass", "field-label")
         fmt_col.addWidget(fl)
@@ -141,11 +151,14 @@ class ConvertTab(QWidget):
         sl = QLabel("Сохранить в")
         sl.setProperty("cssClass", "field-label")
         params_layout.addWidget(sl)
+
         self.output_picker = DirectoryPicker("По умолчанию — рядом с источником")
         params_layout.addWidget(self.output_picker)
 
+        params_layout.addSpacing(4)
+
         opts = QHBoxLayout()
-        opts.setSpacing(20)
+        opts.setSpacing(24)
         self.tree_check = QCheckBox("Дерево структуры")
         self.tree_check.setChecked(True)
         opts.addWidget(self.tree_check)
@@ -154,11 +167,14 @@ class ConvertTab(QWidget):
         opts.addStretch()
         params_layout.addLayout(opts)
 
+        params_layout.addSpacing(4)
+
         convert_row = QHBoxLayout()
         convert_row.addStretch()
-        self.convert_button = QPushButton("Конвертировать")
+        self.convert_button = QPushButton("  Конвертировать  ")
         self.convert_button.setProperty("cssClass", "success")
-        self.convert_button.setMaximumWidth(250)
+        self.convert_button.setMinimumWidth(200)
+        self.convert_button.setMinimumHeight(36)
         self.convert_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.convert_button.setEnabled(False)
         self.convert_button.clicked.connect(self._convert)
@@ -183,8 +199,9 @@ class ConvertTab(QWidget):
 
         log_widget = QWidget()
         log_l = QVBoxLayout(log_widget)
-        log_l.setContentsMargins(12, 4, 12, 4)
-        log_l.setSpacing(2)
+        log_l.setContentsMargins(16, 8, 16, 8)
+        log_l.setSpacing(4)
+
         lh = QHBoxLayout()
         ll = QLabel("Лог")
         ll.setProperty("cssClass", "field-label")
@@ -192,21 +209,22 @@ class ConvertTab(QWidget):
         lh.addStretch()
         cb = QPushButton("Очистить")
         cb.setProperty("cssClass", "secondary")
-        cb.setFixedHeight(22)
-        cb.setMaximumWidth(80)
+        cb.setFixedHeight(24)
+        cb.setMaximumWidth(90)
         cb.setCursor(Qt.CursorShape.PointingHandCursor)
         lh.addWidget(cb)
         log_l.addLayout(lh)
+
         self.log = QTextEdit()
         self.log.setReadOnly(True)
-        self.log.setPlaceholderText("Результаты операций...")
+        self.log.setPlaceholderText("Результаты операций появятся здесь...")
         cb.clicked.connect(lambda: self.log.clear())
         log_l.addWidget(self.log)
 
         splitter.addWidget(log_widget)
         splitter.setStretchFactor(0, 4)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([600, 100])
+        splitter.setSizes([600, 120])
 
         outer.addWidget(splitter)
 
@@ -236,7 +254,9 @@ class ConvertTab(QWidget):
         if not path:
             QMessageBox.warning(self, "Ошибка", "Укажите директорию")
             return
+
         from src.session import load_session
+
         self.session_data = load_session(path)
         if not self.session_data:
             self.source_info.setText("Сессия не найдена")
@@ -245,8 +265,9 @@ class ConvertTab(QWidget):
             self.source_info.style().polish(self.source_info)
             self.log.append(f"✗ Сессия не найдена: {path}")
             return
+
         n = len(self.session_data["scan_data"]["files"])
-        self.source_info.setText(f"Загружено: {n} файлов")
+        self.source_info.setText(f"✓ Загружено: {n} файлов")
         self.source_info.setProperty("cssClass", "success")
         self.source_info.style().unpolish(self.source_info)
         self.source_info.style().polish(self.source_info)
@@ -258,6 +279,7 @@ class ConvertTab(QWidget):
         if not path:
             QMessageBox.warning(self, "Ошибка", "Укажите PDF файл")
             return
+
         pf = Path(path)
         if not pf.exists() or pf.suffix.lower() != ".pdf":
             self.source_info.setText("Файл не найден или не PDF")
@@ -265,8 +287,9 @@ class ConvertTab(QWidget):
             self.source_info.style().unpolish(self.source_info)
             self.source_info.style().polish(self.source_info)
             return
+
         kb = pf.stat().st_size / 1024
-        self.source_info.setText(f"PDF: {pf.name} ({kb:.1f} KB)")
+        self.source_info.setText(f"✓ PDF: {pf.name} ({kb:.1f} KB)")
         self.source_info.setProperty("cssClass", "success")
         self.source_info.style().unpolish(self.source_info)
         self.source_info.style().polish(self.source_info)
@@ -277,6 +300,7 @@ class ConvertTab(QWidget):
         filename = self.filename_input.text().strip()
         if not filename:
             filename = f"convert_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+
         fmt = self.format_combo.currentText()
         if self.mode_combo.currentIndex() == 0:
             self._convert_session(filename, fmt)
@@ -286,16 +310,20 @@ class ConvertTab(QWidget):
     def _convert_session(self, filename, fmt):
         if not self.session_data:
             return
+
         output_dir = self.output_picker.get_path() or self.session_picker.get_path()
         tree = self.tree_check.isChecked()
         redact = self.redact_check.isChecked()
+
         try:
             from src.exporter import export
             from src.session import save_session
+
             data = self.session_data["scan_data"]
             if redact:
                 from src.redactor import redact_scan_result, get_available_patterns
                 data, _ = redact_scan_result(data, get_available_patterns())
+
             out = export(data, filename, fmt, output_dir, tree)
             save_session(data, output_dir, out)
             self.log.append(f"✓ {out}")
@@ -310,8 +338,10 @@ class ConvertTab(QWidget):
         if fmt == "pdf":
             QMessageBox.warning(self, "Ошибка", "PDF → PDF невозможно")
             return
+
         try:
             from src.converter import convert_pdf_to_format
+
             out = convert_pdf_to_format(path, filename, fmt, output_dir)
             if out:
                 self.log.append(f"✓ {out}")

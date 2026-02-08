@@ -3,7 +3,7 @@ import ctypes
 from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QFont
 
 from gui.main_window import MainWindow
 
@@ -23,6 +23,10 @@ def run_gui():
     app.setApplicationName("Context Builder")
     app.setApplicationVersion("1.2.0")
     app.setOrganizationName("ContextBuilder")
+
+    font = QFont("Segoe UI", 10)
+    font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+    app.setFont(font)
 
     icon_path = Path(__file__).parent.parent / "icon.ico"
     if icon_path.exists():

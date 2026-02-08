@@ -1,10 +1,9 @@
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
     QTextEdit,
-    QScrollArea,
+    QLabel,
+    QFrame,
 )
 from PySide6.QtCore import Qt
 
@@ -15,43 +14,75 @@ class AboutTab(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(48, 36, 48, 36)
+        layout.setSpacing(16)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-
-        container = QWidget()
-        container.setMaximumWidth(800)
-
-        layout = QVBoxLayout(container)
-        layout.setSpacing(12)
-        layout.setContentsMargins(24, 24, 24, 24)
-
-        title = QLabel("Context Builder")
+        title = QLabel("О программе")
         title.setProperty("cssClass", "title")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(title)
-
-        version = QLabel("Версия 1.2.0")
-        version.setProperty("cssClass", "subtitle")
-        version.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(version)
 
         about = QTextEdit()
         about.setReadOnly(True)
-        about.setFrameShape(QTextEdit.Shape.NoFrame)
-        about.setHtml("""
-        <h3>Для чего создан Context Builder?</h3>
+        about.setFrameShape(QFrame.Shape.NoFrame)
+
+        html_content = """
+        <style>
+            body {
+                font-family: 'Segoe UI', 'Inter', sans-serif;
+            }
+            h3 {
+                margin-top: 22px;
+                margin-bottom: 6px;
+                color: #89b4fa;
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 17px;
+                font-weight: 600;
+            }
+            p, li {
+                line-height: 1.7;
+                font-size: 14px;
+                margin-bottom: 8px;
+                color: #cdd6f4;
+            }
+            ul {
+                margin-bottom: 12px;
+                margin-left: -16px;
+            }
+            li {
+                margin-bottom: 4px;
+            }
+            b {
+                color: #89b4fa;
+            }
+            .tech {
+                color: #a6adc8;
+                font-size: 13px;
+                font-family: 'Cascadia Code', 'Consolas', monospace;
+            }
+            .footer {
+                margin-top: 32px;
+                color: #6c7086;
+                font-size: 12px;
+            }
+            .divider {
+                border: none;
+                border-top: 1px solid #313244;
+                margin: 20px 0;
+            }
+        </style>
+
+        <h3>🔍 Для чего создан Context Builder?</h3>
         <p>Context Builder — инструмент для разработчиков, аналитиков и всех,
         кто работает с проектами, содержащими множество файлов и папок.</p>
-
         <p>Программа позволяет быстро создать полный снимок структуры проекта —
         от дерева папок до содержимого каждого файла — и сохранить его
         в удобном формате.</p>
 
-        <h3>Зачем это нужно?</h3>
+        <hr class="divider">
+
+        <h3>🎯 Зачем это нужно?</h3>
         <ul>
             <li><b>Документирование</b> — отчёты о структуре кодовой базы</li>
             <li><b>Работа с ИИ</b> — подготовка контекста для LLM</li>
@@ -60,7 +91,7 @@ class AboutTab(QWidget):
             <li><b>Код-ревью</b> — передача структуры коллегам</li>
         </ul>
 
-        <h3>Возможности</h3>
+        <h3>⚡ Возможности</h3>
         <ul>
             <li>Сканирование директорий (3 режима)</li>
             <li>Экспорт в TXT, Markdown, JSON, PDF</li>
@@ -68,29 +99,18 @@ class AboutTab(QWidget):
             <li>Цензура паролей, ключей, email</li>
             <li>Подсчёт токенов для LLM</li>
             <li>Профили настроек</li>
-            <li>GUI + CLI</li>
         </ul>
 
-        <h3>Технологии</h3>
-        <p>Python 3.10+ · PySide6 · InquirerPy · Rich · fpdf2 · PyMuPDF · tiktoken</p>
+        <hr class="divider">
 
-        <h3>Лицензия</h3>
+        <h3>🛠 Технологии</h3>
+        <p class="tech">Python 3.10+  ·  PySide6  ·  InquirerPy  ·  Rich  ·  fpdf2  ·  PyMuPDF  ·  tiktoken</p>
+
+        <h3>📄 Лицензия</h3>
         <p>MIT License — свободное использование и распространение.</p>
-        """)
-        layout.addWidget(about, 1)
 
-        footer = QLabel("© 2025 Context Builder · MIT License")
-        footer.setProperty("cssClass", "subtitle")
-        footer.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(footer)
+        <p class="footer">© 2026 Context Builder v1.2.0</p>
+        """
 
-        wrapper = QHBoxLayout()
-        wrapper.addStretch()
-        wrapper.addWidget(container)
-        wrapper.addStretch()
-
-        scroll_content = QWidget()
-        scroll_content.setLayout(wrapper)
-        scroll.setWidget(scroll_content)
-
-        outer.addWidget(scroll)
+        about.setHtml(html_content)
+        layout.addWidget(about)
