@@ -108,40 +108,52 @@ python main.py
 
 # Автоматический режим (CLI)
 
-## Базовое сканирование
+**Базовое сканирование** — сканирует директорию и создаёт текстовый отчёт:
 
 ```bash
 python main.py --path "./my_project" --format txt --output report
 ```
 
-## С цензурой
+**С цензурой** — заменяет пароли, ключи и email на ***REDACTED***:
 
 ```bash
 python main.py --path "./src" --format md --redact --output secure_report
 ```
 
-## Только предпросмотр
+**Только предпросмотр** — показывает сводку без создания файла (количество файлов, размер, токены):
 
 ```bash
 python main.py --path "./src" --preview
 ```
 
-## Без дерева структуры
+**Без дерева структуры** — создаёт отчёт только с содержимым файлов, без визуализации папок:
 
 ```bash
 python main.py --path "./src" --format txt --no-tree
 ```
 
-## Разбиение на части по 2 МБ
+**Разбиение на части** — разделяет большой отчёт на файлы по 2 МБ (report_part1.txt, report_part2.txt):
 
 ```bash
 python main.py --path "./src" --format txt --split 2 --output big_report
 ```
 
-## Тихий режим (для скриптов)
+**Тихий режим** — без вывода в консоль, подходит для автоматических скриптов и CI/CD:
 
 ```bash
 python main.py --path "./src" --format json --silent --output auto_report
+```
+
+**Сохранение в другую папку** — отчёт создаётся в указанной директории, а не в сканируемой:
+
+```bash
+python main.py --path "./src" --format txt --output report --output-dir "./reports"
+```
+
+**Комбинирование параметров** — можно сочетать любые параметры вместе:
+
+```bash
+python main.py --path "./src" --format md --redact --no-tree --split 5 --output full_report
 ```
 
 # CLI параметры
