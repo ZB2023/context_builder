@@ -71,7 +71,7 @@ class ScanTab(QWidget):
         format_layout = QHBoxLayout()
         format_layout.addWidget(QLabel("Формат:"))
         self.format_combo = QComboBox()
-        self.format_combo.addItems(["txt", "md", "json"])
+        self.format_combo.addItems(["txt", "md", "json", "pdf"])
         format_layout.addWidget(self.format_combo)
         export_layout.addLayout(format_layout)
 
