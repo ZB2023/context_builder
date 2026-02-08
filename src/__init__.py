@@ -19,11 +19,23 @@ from src.menu import (
     select_profile,
     settings_menu,
     select_copy_to_clipboard,
+    input_sessions_directory,
+    select_session_from_list,
+    select_sessions_directory_mode,
 )
 from src.scanner import scan_directory, get_subdirectories, build_tree_view
 from src.exporter import export
 from src.converter import convert_from_session, detect_modification
-from src.session import save_session, load_session, list_sessions_in_directory, find_report_files
+from src.session import (
+    save_session,
+    load_session,
+    list_sessions_in_directory,
+    list_all_sessions,
+    find_report_files,
+    get_sessions_root,
+    set_sessions_root,
+    delete_session,
+)
 from src.redactor import redact_scan_result, get_available_patterns
 from src.clipboard import copy_to_clipboard
 from src.config import save_profile, load_profile, list_profiles, delete_profile

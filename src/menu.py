@@ -359,12 +359,12 @@ def input_profile_name():
 
 def settings_menu():
     choices = [
+        Choice(value="session_dir", name="📁 Директория хранения сессий"),
         Choice(value="save", name="Сохранить текущий профиль"),
         Choice(value="load", name="Загрузить профиль"),
         Choice(value="delete", name="Удалить профиль"),
         Choice(value="list", name="Список профилей"),
     ]
-
     return _prompt_select("Настройки:", choices)
 
 
@@ -427,3 +427,41 @@ def select_pdf_source_mode():
     ]
 
     return _prompt_select("Источник для конвертации:", choices)
+
+
+def input_sessions_directory():
+    return _prompt_filepath(
+        "Укажите директорию для хранения сессий:",
+        only_directories=True,
+    )
+
+
+def select_session_from_list(sessions):
+    if not sessions:
+        console.print("[bold red]Нет доступных сессий[/bold red]")
+        return BACK_VALUE
+
+    choices = []
+    for s in sessions:
+        scan_root = s.get("scan_root", "Неизвестно")
+        created = s.get("created_at", "")
+        if created:
+            try:
+                from datetime import datetime as dt
+                parsed = dt.fromisoformat(created)
+                created = parsed.strftime("%Y-%m-%d %H:%M")
+            except (ValueError, TypeError):
+                pass
+        name = s.get("name", "session")
+        label = f"{name} | {scan_root} | {created}"
+        choices.append(Choice(value=s["path"], name=label))
+
+    return _prompt_select("Выберите сессию:", choices)
+
+
+def select_sessions_directory_mode():
+    choices = [
+        Choice(value="current", name="Использовать текущую директорию"),
+        Choice(value="change", name="Указать другую директорию"),
+    ]
+    return _prompt_select("Директория хранения сессий:", choices)

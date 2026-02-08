@@ -33,6 +33,9 @@ from src.menu import (
     select_file_filter_mode,
     input_extensions,
     input_search_query,
+    input_sessions_directory,
+    select_session_from_list,
+    select_sessions_directory_mode,
 )
 from src.scanner import (
     scan_directory,
@@ -48,7 +51,11 @@ from src.session import (
     save_session,
     load_session,
     list_sessions_in_directory,
+    list_all_sessions,
     find_report_files,
+    get_sessions_root,
+    set_sessions_root,
+    delete_session,
 )
 from src.preview import show_preview
 from src.exporter import export
@@ -285,7 +292,7 @@ def handle_scan(profile_settings=None):
                     result, final_name, state["export_format"],
                     state["output_dir"], state["include_tree"]
                 )
-                save_session(result, report_path=output_file)
+                save_session(result, output_dir=state["output_dir"], report_path=output_file)
                 console.print(f"[bold green]✓ Отчёт создан: {output_file}[/bold green]")
                 handle_post_export(output_file)
 
@@ -335,20 +342,23 @@ def handle_convert():
             step = 3
 
         elif step == 3:
-            sessions = list_sessions_in_directory(state["root_path"])
+            all_sessions = list_all_sessions()
+            local_sessions = list_sessions_in_directory(state["root_path"])
 
-            if not sessions:
+            if all_sessions:
+                selected = select_session_from_list(all_sessions)
+            elif local_sessions:
+                selected = select_session(local_sessions)
+            else:
                 console.print("[bold red]Сессии не найдены. Сначала выполните сканирование.[/bold red]")
                 step = 2
                 continue
 
-            selected = select_session(sessions)
             if is_back(selected):
                 step = 2
                 continue
 
             session_data = load_session(selected)
-
             if session_data is None:
                 console.print("[bold red]Не удалось загрузить сессию[/bold red]")
                 step = 2
@@ -837,6 +847,45 @@ def handle_settings():
         if is_back(choice):
             break
 
+        elif choice == "session_dir":
+            current = get_sessions_root()
+            if current:
+                console.print(f"\n[bold]Текущая директория сессий:[/bold] {current}")
+            else:
+                console.print("\n[bold yellow]Директория сессий не настроена[/bold yellow]")
+
+            all_sessions = list_all_sessions()
+            console.print(f"[dim]Сохранено сессий: {len(all_sessions)}[/dim]\n")
+
+            if all_sessions:
+                for s in all_sessions:
+                    scan_root = s.get("scan_root", "Неизвестно")
+                    created = s.get("created_at", "")
+                    if created:
+                        try:
+                            from datetime import datetime as dt
+                            parsed = dt.fromisoformat(created)
+                            created = parsed.strftime("%Y-%m-%d %H:%M")
+                        except (ValueError, TypeError):
+                            pass
+                    console.print(f"  [cyan]• {s['name']}[/cyan] — {scan_root} ({created})")
+                console.print("")
+
+            action = select_sessions_directory_mode()
+            if is_back(action):
+                continue
+
+            if action == "change":
+                new_path = input_sessions_directory()
+                if not is_back(new_path):
+                    set_sessions_root(new_path)
+                    console.print(f"[green]✓ Директория сессий изменена: {new_path}[/green]")
+            else:
+                if current:
+                    console.print(f"[dim]Директория не изменена: {current}[/dim]")
+                else:
+                    console.print("[dim]Директория не была выбрана[/dim]")
+
         elif choice == "save":
             name = input_profile_name()
             if is_back(name):
@@ -909,8 +958,37 @@ def handle_settings():
                 console.print("[yellow]Нет сохранённых профилей[/yellow]")
 
 
+def ensure_sessions_directory():
+    sessions_root = get_sessions_root()
+
+    if sessions_root is not None:
+        console.print(
+            f"[dim]Директория сессий: {sessions_root}[/dim]\n"
+        )
+        return True
+
+    console.print(
+        "[bold yellow]⚠ Директория для хранения сессий не настроена.[/bold yellow]\n"
+        "[dim]Все сессии будут храниться в одном месте для удобного повторного использования.[/dim]\n"
+    )
+
+    path = input_sessions_directory()
+    if is_back(path):
+        from src.session import DEFAULT_SESSIONS_ROOT
+        set_sessions_root(DEFAULT_SESSIONS_ROOT)
+        console.print(
+            f"[green]✓ Используется директория по умолчанию: {DEFAULT_SESSIONS_ROOT}[/green]\n"
+        )
+        return True
+
+    set_sessions_root(path)
+    console.print(f"[green]✓ Директория сессий: {path}[/green]\n")
+    return True
+
+
 def main():
     show_welcome()
+    ensure_sessions_directory()
 
     while True:
         choice = main_menu()
