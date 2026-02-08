@@ -157,11 +157,22 @@ def collect_text_files(path, max_file_size_mb=10):
         return []
 
     files = []
-    _collect_recursive(root, files, max_file_size_mb)
+    _collect_recursive(root, files, max_file_size_mb, text_only=True)
     return files
 
 
-def _collect_recursive(current_path, files, max_file_size_mb):
+def collect_all_files(path, max_file_size_mb=10):
+    root = Path(path).resolve()
+
+    if not root.exists() or not root.is_dir():
+        return []
+
+    files = []
+    _collect_recursive(root, files, max_file_size_mb, text_only=False)
+    return files
+
+
+def _collect_recursive(current_path, files, max_file_size_mb, text_only=True):
     if not check_access(current_path):
         return
 
@@ -174,10 +185,10 @@ def _collect_recursive(current_path, files, max_file_size_mb):
         if entry.is_dir():
             if entry.name in SKIP_DIRECTORIES:
                 continue
-            _collect_recursive(entry, files, max_file_size_mb)
+            _collect_recursive(entry, files, max_file_size_mb, text_only)
 
         elif entry.is_file():
-            if is_binary_extension(entry):
+            if text_only and is_binary_extension(entry):
                 continue
             if not is_within_size_limit(entry, max_file_size_mb):
                 continue
@@ -215,6 +226,12 @@ def scan_selected_files(selected_files, root_path):
         result["structure"].append(
             {"path": str(relative), "type": "file"}
         )
+
+        if is_binary_extension(filepath):
+            result["skipped"].append(
+                {"path": str(relative), "reason": "Binary file (included by selection)"}
+            )
+            continue
 
         encoding = detect_file_encoding(filepath)
         content = read_file_safe(filepath, encoding)

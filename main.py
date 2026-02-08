@@ -39,6 +39,7 @@ from src.scanner import (
     get_subdirectories,
     build_tree_view,
     collect_text_files,
+    collect_all_files,
     scan_selected_files,
     filter_by_extensions,
     filter_by_name,
@@ -91,36 +92,6 @@ def handle_filename_conflict(directory, filename, extension):
     return BACK_VALUE
 
 
-def do_redaction(scan_result):
-    use_redaction = toggle_redaction()
-
-    if is_back(use_redaction):
-        return BACK_VALUE
-
-    if not use_redaction:
-        return scan_result
-
-    available = get_available_patterns()
-    selected_patterns = select_redaction_patterns(available)
-
-    if is_back(selected_patterns):
-        return BACK_VALUE
-
-    redacted_result, findings = redact_scan_result(scan_result, selected_patterns)
-
-    if findings:
-        console.print("\n[bold yellow]⚠ Найдены конфиденциальные данные:[/bold yellow]")
-        for item in findings:
-            console.print(f"  [dim]📄 {item['file']}[/dim]")
-            for f in item["findings"]:
-                console.print(f"    [red]• {f['pattern']}: {f['count']} совпадений[/red]")
-        console.print("[green]Все совпадения заменены на ***REDACTED***[/green]\n")
-    else:
-        console.print("[green]Конфиденциальных данных не обнаружено[/green]\n")
-
-    return redacted_result
-
-
 def handle_post_export(output_file):
     copy_choice = select_copy_to_clipboard()
 
@@ -138,7 +109,6 @@ def handle_scan(profile_settings=None):
         "mode": None,
         "root_path": None,
         "scan_results": None,
-        "confirmed": None,
         "include_tree": None,
         "processed_results": None,
         "filename": None,
@@ -228,20 +198,44 @@ def handle_scan(profile_settings=None):
             step = 6
 
         elif step == 6:
-            processed_results = []
-            go_back = False
-
-            for result in state["scan_results"]:
-                processed = do_redaction(result)
-                if is_back(processed):
-                    go_back = True
-                    break
-                processed_results.append(processed)
-
-            if go_back:
+            use_redaction = toggle_redaction()
+            if is_back(use_redaction):
                 state["include_tree"] = None
                 step = 5
                 continue
+
+            if not use_redaction:
+                state["processed_results"] = list(state["scan_results"])
+                step = 7
+                continue
+
+            available = get_available_patterns()
+            selected_patterns = select_redaction_patterns(available)
+            if is_back(selected_patterns):
+                state["include_tree"] = None
+                step = 5
+                continue
+
+            processed_results = []
+            for result in state["scan_results"]:
+                redacted_result, findings = redact_scan_result(result, selected_patterns)
+
+                if findings:
+                    console.print("\n[bold yellow]⚠ Найдены конфиденциальные данные:[/bold yellow]")
+                    for item in findings:
+                        console.print(f"  [dim]📄 {item['file']}[/dim]")
+                        for f in item["findings"]:
+                            console.print(f"    [red]• {f['pattern']}: {f['count']} совпадений[/red]")
+
+                processed_results.append(redacted_result)
+
+            if any(
+                any(len(r.get("files", [])) > 0 for r in [result])
+                for result in state["scan_results"]
+            ):
+                console.print("[green]Цензура применена[/green]\n")
+            else:
+                console.print("[green]Конфиденциальных данных не обнаружено[/green]\n")
 
             state["processed_results"] = processed_results
             step = 7
@@ -410,11 +404,37 @@ def handle_convert():
             step = 6
 
         elif step == 6:
-            scan_data = do_redaction(state["session_data"]["scan_data"])
-            if is_back(scan_data):
+            use_redaction = toggle_redaction()
+            if is_back(use_redaction):
                 step = 5
                 continue
-            state["scan_data"] = scan_data
+
+            scan_data = state["session_data"]["scan_data"]
+
+            if not use_redaction:
+                state["scan_data"] = scan_data
+                step = 7
+                continue
+
+            available = get_available_patterns()
+            selected_patterns = select_redaction_patterns(available)
+            if is_back(selected_patterns):
+                step = 5
+                continue
+
+            redacted_result, findings = redact_scan_result(scan_data, selected_patterns)
+
+            if findings:
+                console.print("\n[bold yellow]⚠ Найдены конфиденциальные данные:[/bold yellow]")
+                for item in findings:
+                    console.print(f"  [dim]📄 {item['file']}[/dim]")
+                    for f in item["findings"]:
+                        console.print(f"    [red]• {f['pattern']}: {f['count']} совпадений[/red]")
+                console.print("[green]Цензура применена[/green]\n")
+            else:
+                console.print("[green]Конфиденциальных данных не обнаружено[/green]\n")
+
+            state["scan_data"] = redacted_result
             step = 7
 
         elif step == 7:
@@ -639,7 +659,10 @@ def handle_select_files():
             all_files = collect_text_files(root_path)
 
             if not all_files:
-                console.print("[bold red]Текстовые файлы не найдены[/bold red]")
+                all_files = collect_all_files(root_path)
+
+            if not all_files:
+                console.print("[bold red]Файлы не найдены[/bold red]")
                 return
 
             state["all_files"] = all_files
@@ -652,8 +675,15 @@ def handle_select_files():
                 step = 1
                 continue
 
-            if filter_mode == "all":
+            if filter_mode == "all_text":
                 filtered = state["all_files"]
+
+            elif filter_mode == "all_files":
+                filtered = collect_all_files(state["root_path"])
+                if not filtered:
+                    console.print("[bold red]Файлы не найдены[/bold red]")
+                    continue
+                console.print(f"[green]Найдено всего файлов: {len(filtered)}[/green]\n")
 
             elif filter_mode == "extension":
                 raw = input_extensions()
@@ -661,7 +691,8 @@ def handle_select_files():
                     continue
 
                 extensions = [e.strip() for e in raw.split(",")]
-                filtered = filter_by_extensions(state["all_files"], extensions)
+                all_for_filter = collect_all_files(state["root_path"])
+                filtered = filter_by_extensions(all_for_filter, extensions)
 
                 if not filtered:
                     console.print("[bold red]Файлы с указанными расширениями не найдены[/bold red]")
@@ -674,7 +705,8 @@ def handle_select_files():
                 if is_back(query):
                     continue
 
-                filtered = filter_by_name(state["all_files"], query)
+                all_for_search = collect_all_files(state["root_path"])
+                filtered = filter_by_name(all_for_search, query)
 
                 if not filtered:
                     console.print(f"[bold red]Файлы с '{query}' в имени не найдены[/bold red]")
@@ -723,11 +755,34 @@ def handle_select_files():
             step = 6
 
         elif step == 6:
-            processed = do_redaction(state["scan_result"])
-            if is_back(processed):
+            use_redaction = toggle_redaction()
+            if is_back(use_redaction):
                 step = 5
                 continue
-            state["scan_result"] = processed
+
+            if not use_redaction:
+                step = 7
+                continue
+
+            available = get_available_patterns()
+            selected_patterns = select_redaction_patterns(available)
+            if is_back(selected_patterns):
+                step = 5
+                continue
+
+            redacted_result, findings = redact_scan_result(state["scan_result"], selected_patterns)
+
+            if findings:
+                console.print("\n[bold yellow]⚠ Найдены конфиденциальные данные:[/bold yellow]")
+                for item in findings:
+                    console.print(f"  [dim]📄 {item['file']}[/dim]")
+                    for f in item["findings"]:
+                        console.print(f"    [red]• {f['pattern']}: {f['count']} совпадений[/red]")
+                console.print("[green]Цензура применена[/green]\n")
+            else:
+                console.print("[green]Конфиденциальных данных не обнаружено[/green]\n")
+
+            state["scan_result"] = redacted_result
             step = 7
 
         elif step == 7:

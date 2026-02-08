@@ -295,12 +295,18 @@ def select_redaction_patterns(patterns):
         for p in patterns
     ]
 
-    return _prompt_checkbox(
-        "Выберите типы данных для цензуры (Пробел — переключить):",
+    result = _prompt_checkbox(
+        "Выберите типы данных для цензуры (Пробел — переключить, Enter — подтвердить):",
         choices,
-        validate=lambda result: len(result) > 0,
-        invalid_message="Выберите хотя бы один тип",
     )
+
+    if result == BACK_VALUE:
+        return BACK_VALUE
+
+    if not result:
+        return patterns
+
+    return result
 
 
 def select_overwrite_action(filepath):
@@ -389,8 +395,9 @@ def select_files_from_list(files):
 
 def select_file_filter_mode():
     choices = [
-        Choice(value="all", name="Все текстовые файлы"),
-        Choice(value="extension", name="Фильтр по расширению (.py, .js, ...)"),
+        Choice(value="all_text", name="Все текстовые файлы"),
+        Choice(value="all_files", name="Все файлы (включая бинарные)"),
+        Choice(value="extension", name="Фильтр по расширению (.py, .docx, ...)"),
         Choice(value="search", name="Поиск по имени"),
     ]
 
