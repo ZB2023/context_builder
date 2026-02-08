@@ -21,17 +21,30 @@ def show_welcome():
     )
 
 
+def _bind_escape(prompt, result_holder):
+    @prompt.register_kb("escape")
+    def _escape(event):
+        result_holder["escaped"] = True
+        event.app.exit(result=BACK_VALUE)
+
+
 def _prompt_select(message, choices, back=True):
     if back:
         choices = choices + [Choice(value=BACK_VALUE, name="← Назад")]
 
+    result_holder = {"escaped": False}
+
     try:
-        result = inquirer.select(
+        prompt = inquirer.select(
             message=message,
             choices=choices,
             pointer="→",
-            mandatory=False,
-        ).execute()
+        )
+        _bind_escape(prompt, result_holder)
+        result = prompt.execute()
+
+        if result_holder["escaped"]:
+            return BACK_VALUE
 
         if result is None:
             return BACK_VALUE
@@ -42,14 +55,20 @@ def _prompt_select(message, choices, back=True):
 
 
 def _prompt_text(message, default="", validate=None, invalid_message="Некорректный ввод"):
+    result_holder = {"escaped": False}
+
     try:
-        result = inquirer.text(
+        prompt = inquirer.text(
             message=message,
             default=default,
             validate=validate,
             invalid_message=invalid_message,
-            mandatory=False,
-        ).execute()
+        )
+        _bind_escape(prompt, result_holder)
+        result = prompt.execute()
+
+        if result_holder["escaped"]:
+            return BACK_VALUE
 
         if result is None:
             return BACK_VALUE
@@ -60,14 +79,20 @@ def _prompt_text(message, default="", validate=None, invalid_message="Некор
 
 
 def _prompt_filepath(message, only_directories=False):
+    result_holder = {"escaped": False}
+
     try:
-        result = inquirer.filepath(
+        prompt = inquirer.filepath(
             message=message,
             only_directories=only_directories,
             validate=lambda path: len(path.strip()) > 0,
             invalid_message="Путь не может быть пустым",
-            mandatory=False,
-        ).execute()
+        )
+        _bind_escape(prompt, result_holder)
+        result = prompt.execute()
+
+        if result_holder["escaped"]:
+            return BACK_VALUE
 
         if result is None or not result.strip():
             return BACK_VALUE
@@ -78,12 +103,18 @@ def _prompt_filepath(message, only_directories=False):
 
 
 def _prompt_confirm(message, default=False):
+    result_holder = {"escaped": False}
+
     try:
-        result = inquirer.confirm(
+        prompt = inquirer.confirm(
             message=message,
             default=default,
-            mandatory=False,
-        ).execute()
+        )
+        _bind_escape(prompt, result_holder)
+        result = prompt.execute()
+
+        if result_holder["escaped"]:
+            return BACK_VALUE
 
         if result is None:
             return BACK_VALUE
@@ -94,14 +125,20 @@ def _prompt_confirm(message, default=False):
 
 
 def _prompt_checkbox(message, choices, validate=None, invalid_message="Выберите хотя бы один вариант"):
+    result_holder = {"escaped": False}
+
     try:
-        result = inquirer.checkbox(
+        prompt = inquirer.checkbox(
             message=message,
             choices=choices,
             validate=validate,
             invalid_message=invalid_message,
-            mandatory=False,
-        ).execute()
+        )
+        _bind_escape(prompt, result_holder)
+        result = prompt.execute()
+
+        if result_holder["escaped"]:
+            return BACK_VALUE
 
         if result is None:
             return BACK_VALUE
@@ -376,6 +413,7 @@ def input_search_query():
         validate=lambda val: len(val.strip()) > 0,
         invalid_message="Поисковый запрос не может быть пустым",
     )
+
 
 def select_pdf_source_mode():
     choices = [
