@@ -81,12 +81,15 @@ def handle_filename_conflict(directory, filename, extension):
         return generate_unique_filename(directory, filename, extension)
 
     if action == "new_name":
-        return input_filename()
+        new_name = input_filename()
+        if is_back(new_name):
+            return BACK_VALUE
+        return new_name
 
     return BACK_VALUE
 
 
-def apply_redaction(scan_result):
+def do_redaction(scan_result):
     use_redaction = toggle_redaction()
 
     if is_back(use_redaction):
@@ -129,182 +132,311 @@ def handle_post_export(output_file):
 
 
 def handle_scan(profile_settings=None):
+    state = {
+        "mode": None,
+        "root_path": None,
+        "scan_results": None,
+        "confirmed": None,
+        "include_tree": None,
+        "processed_results": None,
+        "filename": None,
+        "export_format": None,
+        "output_dir": None,
+    }
+
     if profile_settings:
-        mode = profile_settings.get("mode", "single")
-        root_path = profile_settings.get("root_path")
-        include_tree = profile_settings.get("include_tree", True)
-        export_format = profile_settings.get("export_format", "txt")
-        output_dir = profile_settings.get("output_dir")
+        state["mode"] = profile_settings.get("mode", "single")
+        state["root_path"] = profile_settings.get("root_path")
+        state["include_tree"] = profile_settings.get("include_tree", True)
+        state["export_format"] = profile_settings.get("export_format", "txt")
+        state["output_dir"] = profile_settings.get("output_dir")
+        step = 3
     else:
-        mode = select_directory_mode()
-        if is_back(mode):
+        step = 1
+
+    while True:
+        if step == 1:
+            mode = select_directory_mode()
+            if is_back(mode):
+                return
+            state["mode"] = mode
+            step = 2
+
+        elif step == 2:
+            root_path = input_directory_path()
+            if is_back(root_path):
+                step = 1
+                continue
+            state["root_path"] = root_path
+            step = 3
+
+        elif step == 3:
+            scan_results = []
+
+            if state["mode"] == "single":
+                result = scan_directory(state["root_path"])
+                if result:
+                    scan_results.append(result)
+
+            elif state["mode"] == "multi":
+                subdirs = get_subdirectories(state["root_path"])
+                selected = select_multiple_directories(subdirs)
+                if is_back(selected):
+                    step = 2
+                    continue
+                for directory in selected:
+                    result = scan_directory(directory)
+                    if result:
+                        scan_results.append(result)
+
+            elif state["mode"] == "recursive":
+                result = scan_directory(state["root_path"])
+                if result:
+                    scan_results.append(result)
+
+            if not scan_results:
+                console.print("[bold red]Нет данных для записи[/bold red]")
+                step = 2
+                continue
+
+            state["scan_results"] = scan_results
+
+            for result in scan_results:
+                tree = build_tree_view(result)
+                console.print(tree)
+                show_preview(result)
+
+            step = 4
+
+        elif step == 4:
+            proceed = confirm_action("Продолжить запись?")
+            if is_back(proceed) or not proceed:
+                console.print("[yellow]Операция отменена[/yellow]")
+                step = 2
+                continue
+            step = 5
+
+        elif step == 5:
+            if state["include_tree"] is None:
+                include_tree = toggle_tree_view()
+                if is_back(include_tree):
+                    step = 4
+                    continue
+                state["include_tree"] = include_tree
+            step = 6
+
+        elif step == 6:
+            processed_results = []
+            go_back = False
+
+            for result in state["scan_results"]:
+                processed = do_redaction(result)
+                if is_back(processed):
+                    go_back = True
+                    break
+                processed_results.append(processed)
+
+            if go_back:
+                state["include_tree"] = None
+                step = 5
+                continue
+
+            state["processed_results"] = processed_results
+            step = 7
+
+        elif step == 7:
+            filename = input_filename()
+            if is_back(filename):
+                step = 6
+                continue
+            state["filename"] = filename
+            step = 8
+
+        elif step == 8:
+            if state["export_format"] is None:
+                export_format = select_export_format()
+                if is_back(export_format):
+                    step = 7
+                    continue
+                state["export_format"] = export_format
+            step = 9
+
+        elif step == 9:
+            if state["output_dir"] is None:
+                default_dir = state["processed_results"][0]["root"]
+                output_dir = select_output_directory(default_dir)
+                if is_back(output_dir):
+                    state["export_format"] = None
+                    step = 8
+                    continue
+                state["output_dir"] = output_dir
+            step = 10
+
+        elif step == 10:
+            output_path = Path(state["output_dir"])
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            go_back = False
+            for result in state["processed_results"]:
+                final_name = handle_filename_conflict(
+                    state["output_dir"], state["filename"], state["export_format"]
+                )
+                if is_back(final_name):
+                    go_back = True
+                    break
+
+                output_file = export(
+                    result, final_name, state["export_format"],
+                    state["output_dir"], state["include_tree"]
+                )
+                save_session(result, report_path=output_file)
+                console.print(f"[bold green]✓ Отчёт создан: {output_file}[/bold green]")
+                handle_post_export(output_file)
+
+            if go_back:
+                state["output_dir"] = None
+                step = 9
+                continue
+
             return
-
-        root_path = input_directory_path()
-        if is_back(root_path):
-            return
-
-        include_tree = None
-        export_format = None
-        output_dir = None
-
-    scan_results = []
-
-    if mode == "single":
-        result = scan_directory(root_path)
-        if result:
-            scan_results.append(result)
-
-    elif mode == "multi":
-        subdirs = get_subdirectories(root_path)
-        selected = select_multiple_directories(subdirs)
-        if is_back(selected):
-            return
-        for directory in selected:
-            result = scan_directory(directory)
-            if result:
-                scan_results.append(result)
-
-    elif mode == "recursive":
-        result = scan_directory(root_path)
-        if result:
-            scan_results.append(result)
-
-    if not scan_results:
-        console.print("[bold red]Нет данных для записи[/bold red]")
-        return
-
-    for result in scan_results:
-        tree = build_tree_view(result)
-        console.print(tree)
-        show_preview(result)
-
-    proceed = confirm_action("Продолжить запись?")
-    if is_back(proceed) or not proceed:
-        console.print("[yellow]Операция отменена[/yellow]")
-        return
-
-    if include_tree is None:
-        include_tree = toggle_tree_view()
-        if is_back(include_tree):
-            return
-
-    processed_results = []
-    for result in scan_results:
-        processed = apply_redaction(result)
-        if is_back(processed):
-            return
-        processed_results.append(processed)
-
-    filename = input_filename()
-    if is_back(filename):
-        return
-
-    if export_format is None:
-        export_format = select_export_format()
-        if is_back(export_format):
-            return
-
-    if output_dir is None:
-        default_dir = processed_results[0]["root"]
-        output_dir = select_output_directory(default_dir)
-        if is_back(output_dir):
-            return
-
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    for result in processed_results:
-        final_name = handle_filename_conflict(output_dir, filename, export_format)
-        if is_back(final_name):
-            return
-
-        output_file = export(result, final_name, export_format, output_dir, include_tree)
-        save_session(result, report_path=output_file)
-        console.print(f"[bold green]✓ Отчёт создан: {output_file}[/bold green]")
-        handle_post_export(output_file)
 
 
 def handle_convert():
     console.print("[bold cyan]Конвертация из существующей сессии[/bold cyan]\n")
 
-    root_path = input_directory_path()
-    if is_back(root_path):
-        return
+    step = 1
+    state = {
+        "root_path": None,
+        "selected_session": None,
+        "session_data": None,
+        "target_format": None,
+        "include_tree": None,
+        "scan_data": None,
+        "filename": None,
+        "output_dir": None,
+    }
 
-    sessions = list_sessions_in_directory(root_path)
-
-    if not sessions:
-        console.print("[bold red]Сессии не найдены. Сначала выполните сканирование.[/bold red]")
-        return
-
-    selected = select_session(sessions)
-    if is_back(selected):
-        return
-
-    session_data = load_session(selected)
-
-    if session_data is None:
-        console.print("[bold red]Не удалось загрузить сессию[/bold red]")
-        return
-
-    report_path = session_data.get("report_path")
-
-    if report_path:
-        status = detect_modification(report_path, selected)
-
-        if status == "modified":
-            console.print("[bold yellow]⚠ Отчёт был изменён вручную[/bold yellow]")
-            action = select_modification_action()
-            if is_back(action):
+    while True:
+        if step == 1:
+            root_path = input_directory_path()
+            if is_back(root_path):
                 return
+            state["root_path"] = root_path
+            step = 2
 
-            if action == "rescan":
-                scan_result = scan_directory(session_data["scan_data"]["root"])
-                if scan_result is None:
-                    console.print("[bold red]Ошибка пересканирования[/bold red]")
-                    return
-                session_data["scan_data"] = scan_result
+        elif step == 2:
+            sessions = list_sessions_in_directory(state["root_path"])
 
-        elif status == "file_missing":
-            console.print("[bold yellow]⚠ Исходный файл отчёта не найден[/bold yellow]")
+            if not sessions:
+                console.print("[bold red]Сессии не найдены. Сначала выполните сканирование.[/bold red]")
+                step = 1
+                continue
 
-    current_format = "txt"
-    if report_path:
-        current_format = Path(report_path).suffix.lstrip(".")
+            selected = select_session(sessions)
+            if is_back(selected):
+                step = 1
+                continue
 
-    target_format = select_convert_format(current_format)
-    if is_back(target_format):
-        return
+            session_data = load_session(selected)
 
-    include_tree = toggle_tree_view()
-    if is_back(include_tree):
-        return
+            if session_data is None:
+                console.print("[bold red]Не удалось загрузить сессию[/bold red]")
+                step = 1
+                continue
 
-    scan_data = apply_redaction(session_data["scan_data"])
-    if is_back(scan_data):
-        return
+            state["selected_session"] = selected
+            state["session_data"] = session_data
 
-    filename = input_filename()
-    if is_back(filename):
-        return
+            report_path = session_data.get("report_path")
 
-    default_dir = str(selected)
-    output_dir = select_output_directory(default_dir)
-    if is_back(output_dir):
-        return
+            if report_path:
+                status = detect_modification(report_path, selected)
 
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
+                if status == "modified":
+                    console.print("[bold yellow]⚠ Отчёт был изменён вручную[/bold yellow]")
+                    action = select_modification_action()
+                    if is_back(action):
+                        step = 1
+                        continue
 
-    final_name = handle_filename_conflict(output_dir, filename, target_format)
-    if is_back(final_name):
-        return
+                    if action == "rescan":
+                        scan_result = scan_directory(session_data["scan_data"]["root"])
+                        if scan_result is None:
+                            console.print("[bold red]Ошибка пересканирования[/bold red]")
+                            step = 1
+                            continue
+                        state["session_data"]["scan_data"] = scan_result
 
-    output_file = export(scan_data, final_name, target_format, output_dir, include_tree)
-    save_session(scan_data, output_dir, output_file)
-    console.print(f"[bold green]✓ Конвертация завершена: {output_file}[/bold green]")
-    handle_post_export(output_file)
+                elif status == "file_missing":
+                    console.print("[bold yellow]⚠ Исходный файл отчёта не найден[/bold yellow]")
+
+            step = 3
+
+        elif step == 3:
+            current_format = "txt"
+            report_path = state["session_data"].get("report_path")
+            if report_path:
+                current_format = Path(report_path).suffix.lstrip(".")
+
+            target_format = select_convert_format(current_format)
+            if is_back(target_format):
+                step = 2
+                continue
+            state["target_format"] = target_format
+            step = 4
+
+        elif step == 4:
+            include_tree = toggle_tree_view()
+            if is_back(include_tree):
+                step = 3
+                continue
+            state["include_tree"] = include_tree
+            step = 5
+
+        elif step == 5:
+            scan_data = do_redaction(state["session_data"]["scan_data"])
+            if is_back(scan_data):
+                step = 4
+                continue
+            state["scan_data"] = scan_data
+            step = 6
+
+        elif step == 6:
+            filename = input_filename()
+            if is_back(filename):
+                step = 5
+                continue
+            state["filename"] = filename
+            step = 7
+
+        elif step == 7:
+            default_dir = str(state["selected_session"])
+            output_dir = select_output_directory(default_dir)
+            if is_back(output_dir):
+                step = 6
+                continue
+            state["output_dir"] = output_dir
+            step = 8
+
+        elif step == 8:
+            output_path = Path(state["output_dir"])
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            final_name = handle_filename_conflict(
+                state["output_dir"], state["filename"], state["target_format"]
+            )
+            if is_back(final_name):
+                step = 7
+                continue
+
+            output_file = export(
+                state["scan_data"], final_name, state["target_format"],
+                state["output_dir"], state["include_tree"]
+            )
+            save_session(state["scan_data"], state["output_dir"], output_file)
+            console.print(f"[bold green]✓ Конвертация завершена: {output_file}[/bold green]")
+            handle_post_export(output_file)
+            return
 
 
 def handle_reconvert():
@@ -315,171 +447,253 @@ def handle_reconvert():
 def handle_delete():
     console.print("[bold cyan]Удаление записи[/bold cyan]\n")
 
-    root_path = input_directory_path()
-    if is_back(root_path):
-        return
+    step = 1
+    state = {
+        "root_path": None,
+        "selected_session": None,
+    }
 
-    sessions = list_sessions_in_directory(root_path)
-
-    if not sessions:
-        console.print("[bold red]Сессии не найдены[/bold red]")
-        return
-
-    selected = select_session(sessions)
-    if is_back(selected):
-        return
-
-    report_files = find_report_files(selected)
-
-    if not report_files:
-        console.print("[bold yellow]Файлы отчётов не найдены в директории[/bold yellow]")
-    else:
-        console.print(f"\n[bold]Найдено файлов: {len(report_files)}[/bold]\n")
-
-        for f in report_files:
-            size_kb = f.stat().st_size / 1024
-            console.print(f"  [dim]📄 {f.name} ({size_kb:.1f} KB)[/dim]")
-
-        console.print("")
-
-        selected_files = select_report_files(report_files)
-        if is_back(selected_files):
-            return
-
-        for file in selected_files:
-            confirm = confirm_action(f"Удалить файл {file.name}?")
-            if is_back(confirm):
+    while True:
+        if step == 1:
+            root_path = input_directory_path()
+            if is_back(root_path):
                 return
+            state["root_path"] = root_path
+            step = 2
 
-            if confirm:
-                try:
-                    file.unlink()
-                    console.print(f"[green]✓ Удалён: {file.name}[/green]")
-                except OSError as e:
-                    console.print(f"[bold red]Ошибка удаления {file.name}: {e}[/bold red]")
+        elif step == 2:
+            sessions = list_sessions_in_directory(state["root_path"])
+
+            if not sessions:
+                console.print("[bold red]Сессии не найдены[/bold red]")
+                step = 1
+                continue
+
+            selected = select_session(sessions)
+            if is_back(selected):
+                step = 1
+                continue
+
+            state["selected_session"] = selected
+            step = 3
+
+        elif step == 3:
+            report_files = find_report_files(state["selected_session"])
+
+            if not report_files:
+                console.print("[bold yellow]Файлы отчётов не найдены в директории[/bold yellow]")
             else:
-                console.print(f"[yellow]Пропущен: {file.name}[/yellow]")
+                console.print(f"\n[bold]Найдено файлов: {len(report_files)}[/bold]\n")
 
-    session_dir = Path(selected) / ".context_builder"
+                for f in report_files:
+                    size_kb = f.stat().st_size / 1024
+                    console.print(f"  [dim]📄 {f.name} ({size_kb:.1f} KB)[/dim]")
 
-    if session_dir.exists():
-        confirm = confirm_action("Удалить также данные сессии (.context_builder)?")
-        if is_back(confirm):
+                console.print("")
+
+                selected_files = select_report_files(report_files)
+                if is_back(selected_files):
+                    step = 2
+                    continue
+
+                for file in selected_files:
+                    confirm = confirm_action(f"Удалить файл {file.name}?")
+                    if is_back(confirm):
+                        step = 2
+                        break
+
+                    if confirm:
+                        try:
+                            file.unlink()
+                            console.print(f"[green]✓ Удалён: {file.name}[/green]")
+                        except OSError as e:
+                            console.print(f"[bold red]Ошибка удаления {file.name}: {e}[/bold red]")
+                    else:
+                        console.print(f"[yellow]Пропущен: {file.name}[/yellow]")
+
+            session_dir = Path(state["selected_session"]) / ".context_builder"
+
+            if session_dir.exists():
+                confirm = confirm_action("Удалить также данные сессии (.context_builder)?")
+                if is_back(confirm):
+                    step = 2
+                    continue
+
+                if confirm:
+                    try:
+                        for file in session_dir.iterdir():
+                            file.unlink()
+                        session_dir.rmdir()
+                        console.print("[green]✓ Сессия удалена[/green]")
+                    except OSError as e:
+                        console.print(f"[bold red]Ошибка удаления сессии: {e}[/bold red]")
+                else:
+                    console.print("[yellow]Данные сессии сохранены[/yellow]")
+
             return
-
-        if confirm:
-            try:
-                for file in session_dir.iterdir():
-                    file.unlink()
-                session_dir.rmdir()
-                console.print("[green]✓ Сессия удалена[/green]")
-            except OSError as e:
-                console.print(f"[bold red]Ошибка удаления сессии: {e}[/bold red]")
-        else:
-            console.print("[yellow]Данные сессии сохранены[/yellow]")
 
 
 def handle_select_files():
     console.print("[bold cyan]Выбор файлов в директориях[/bold cyan]\n")
 
-    root_path = input_directory_path()
-    if is_back(root_path):
-        return
+    step = 1
+    state = {
+        "root_path": None,
+        "all_files": None,
+        "filtered": None,
+        "selected_files": None,
+        "scan_result": None,
+        "include_tree": None,
+        "filename": None,
+        "export_format": None,
+        "output_dir": None,
+    }
 
-    console.print("[dim]Сканирование файлов...[/dim]")
-    all_files = collect_text_files(root_path)
+    while True:
+        if step == 1:
+            root_path = input_directory_path()
+            if is_back(root_path):
+                return
+            state["root_path"] = root_path
 
-    if not all_files:
-        console.print("[bold red]Текстовые файлы не найдены[/bold red]")
-        return
+            console.print("[dim]Сканирование файлов...[/dim]")
+            all_files = collect_text_files(root_path)
 
-    console.print(f"[green]Найдено файлов: {len(all_files)}[/green]\n")
+            if not all_files:
+                console.print("[bold red]Текстовые файлы не найдены[/bold red]")
+                return
 
-    filter_mode = select_file_filter_mode()
-    if is_back(filter_mode):
-        return
+            state["all_files"] = all_files
+            console.print(f"[green]Найдено файлов: {len(all_files)}[/green]\n")
+            step = 2
 
-    if filter_mode == "all":
-        filtered = all_files
+        elif step == 2:
+            filter_mode = select_file_filter_mode()
+            if is_back(filter_mode):
+                step = 1
+                continue
 
-    elif filter_mode == "extension":
-        raw = input_extensions()
-        if is_back(raw):
+            if filter_mode == "all":
+                filtered = state["all_files"]
+
+            elif filter_mode == "extension":
+                raw = input_extensions()
+                if is_back(raw):
+                    continue
+
+                extensions = [e.strip() for e in raw.split(",")]
+                filtered = filter_by_extensions(state["all_files"], extensions)
+
+                if not filtered:
+                    console.print("[bold red]Файлы с указанными расширениями не найдены[/bold red]")
+                    continue
+
+                console.print(f"[green]После фильтрации: {len(filtered)} файлов[/green]\n")
+
+            elif filter_mode == "search":
+                query = input_search_query()
+                if is_back(query):
+                    continue
+
+                filtered = filter_by_name(state["all_files"], query)
+
+                if not filtered:
+                    console.print(f"[bold red]Файлы с '{query}' в имени не найдены[/bold red]")
+                    continue
+
+                console.print(f"[green]Найдено по запросу: {len(filtered)} файлов[/green]\n")
+
+            else:
+                continue
+
+            state["filtered"] = filtered
+            step = 3
+
+        elif step == 3:
+            selected_files = select_files_from_list(state["filtered"])
+            if is_back(selected_files):
+                step = 2
+                continue
+
+            state["selected_files"] = selected_files
+            console.print(f"\n[bold]Выбрано файлов: {len(selected_files)}[/bold]")
+
+            scan_result = scan_selected_files(selected_files, state["root_path"])
+            state["scan_result"] = scan_result
+
+            tree = build_tree_view(scan_result)
+            console.print(tree)
+            show_preview(scan_result)
+
+            step = 4
+
+        elif step == 4:
+            proceed = confirm_action("Продолжить запись?")
+            if is_back(proceed) or not proceed:
+                console.print("[yellow]Операция отменена[/yellow]")
+                step = 3
+                continue
+            step = 5
+
+        elif step == 5:
+            include_tree = toggle_tree_view()
+            if is_back(include_tree):
+                step = 4
+                continue
+            state["include_tree"] = include_tree
+            step = 6
+
+        elif step == 6:
+            processed = do_redaction(state["scan_result"])
+            if is_back(processed):
+                step = 5
+                continue
+            state["scan_result"] = processed
+            step = 7
+
+        elif step == 7:
+            filename = input_filename()
+            if is_back(filename):
+                step = 6
+                continue
+            state["filename"] = filename
+            step = 8
+
+        elif step == 8:
+            export_format = select_export_format()
+            if is_back(export_format):
+                step = 7
+                continue
+            state["export_format"] = export_format
+            step = 9
+
+        elif step == 9:
+            output_dir = select_output_directory(state["root_path"])
+            if is_back(output_dir):
+                step = 8
+                continue
+            state["output_dir"] = output_dir
+            step = 10
+
+        elif step == 10:
+            output_path = Path(state["output_dir"])
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            final_name = handle_filename_conflict(
+                state["output_dir"], state["filename"], state["export_format"]
+            )
+            if is_back(final_name):
+                step = 9
+                continue
+
+            output_file = export(
+                state["scan_result"], final_name, state["export_format"],
+                state["output_dir"], state["include_tree"]
+            )
+            save_session(state["scan_result"], report_path=output_file)
+            console.print(f"[bold green]✓ Отчёт создан: {output_file}[/bold green]")
+            handle_post_export(output_file)
             return
-
-        extensions = [e.strip() for e in raw.split(",")]
-        filtered = filter_by_extensions(all_files, extensions)
-
-        if not filtered:
-            console.print("[bold red]Файлы с указанными расширениями не найдены[/bold red]")
-            return
-
-        console.print(f"[green]После фильтрации: {len(filtered)} файлов[/green]\n")
-
-    elif filter_mode == "search":
-        query = input_search_query()
-        if is_back(query):
-            return
-
-        filtered = filter_by_name(all_files, query)
-
-        if not filtered:
-            console.print(f"[bold red]Файлы с '{query}' в имени не найдены[/bold red]")
-            return
-
-        console.print(f"[green]Найдено по запросу: {len(filtered)} файлов[/green]\n")
-
-    else:
-        return
-
-    selected_files = select_files_from_list(filtered)
-    if is_back(selected_files):
-        return
-
-    console.print(f"\n[bold]Выбрано файлов: {len(selected_files)}[/bold]")
-
-    scan_result = scan_selected_files(selected_files, root_path)
-
-    tree = build_tree_view(scan_result)
-    console.print(tree)
-    show_preview(scan_result)
-
-    proceed = confirm_action("Продолжить запись?")
-    if is_back(proceed) or not proceed:
-        console.print("[yellow]Операция отменена[/yellow]")
-        return
-
-    include_tree = toggle_tree_view()
-    if is_back(include_tree):
-        return
-
-    scan_result = apply_redaction(scan_result)
-    if is_back(scan_result):
-        return
-
-    filename = input_filename()
-    if is_back(filename):
-        return
-
-    export_format = select_export_format()
-    if is_back(export_format):
-        return
-
-    output_dir = select_output_directory(root_path)
-    if is_back(output_dir):
-        return
-
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    final_name = handle_filename_conflict(output_dir, filename, export_format)
-    if is_back(final_name):
-        return
-
-    output_file = export(scan_result, final_name, export_format, output_dir, include_tree)
-    save_session(scan_result, report_path=output_file)
-    console.print(f"[bold green]✓ Отчёт создан: {output_file}[/bold green]")
-    handle_post_export(output_file)
 
 
 def handle_settings():
