@@ -4,6 +4,8 @@ from pathlib import Path
 from rich.console import Console
 
 from src.menu import (
+    BACK_VALUE,
+    EXIT_VALUE,
     show_welcome,
     main_menu,
     select_directory_mode,
@@ -56,6 +58,10 @@ from src.utils.filename import resolve_filename, generate_unique_filename
 console = Console()
 
 
+def is_back(value):
+    return value is None or value == BACK_VALUE
+
+
 def handle_filename_conflict(directory, filename, extension):
     resolved = resolve_filename(directory, filename, extension)
 
@@ -64,6 +70,9 @@ def handle_filename_conflict(directory, filename, extension):
 
     existing = Path(directory) / f"{filename}.{extension}"
     action = select_overwrite_action(existing.name)
+
+    if is_back(action):
+        return BACK_VALUE
 
     if action == "overwrite":
         return filename
@@ -74,17 +83,23 @@ def handle_filename_conflict(directory, filename, extension):
     if action == "new_name":
         return input_filename()
 
-    return None
+    return BACK_VALUE
 
 
 def apply_redaction(scan_result):
     use_redaction = toggle_redaction()
+
+    if is_back(use_redaction):
+        return BACK_VALUE
 
     if not use_redaction:
         return scan_result
 
     available = get_available_patterns()
     selected_patterns = select_redaction_patterns(available)
+
+    if is_back(selected_patterns):
+        return BACK_VALUE
 
     redacted_result, findings = redact_scan_result(scan_result, selected_patterns)
 
@@ -102,11 +117,15 @@ def apply_redaction(scan_result):
 
 
 def handle_post_export(output_file):
-    if select_copy_to_clipboard():
-        if copy_to_clipboard(output_file):
-            console.print("[green]✓ Скопировано в буфер обмена[/green]")
-        else:
-            console.print("[red]✗ Не удалось скопировать[/red]")
+    copy_choice = select_copy_to_clipboard()
+
+    if is_back(copy_choice) or not copy_choice:
+        return
+
+    if copy_to_clipboard(output_file):
+        console.print("[green]✓ Скопировано в буфер обмена[/green]")
+    else:
+        console.print("[red]✗ Не удалось скопировать[/red]")
 
 
 def handle_scan(profile_settings=None):
@@ -118,9 +137,13 @@ def handle_scan(profile_settings=None):
         output_dir = profile_settings.get("output_dir")
     else:
         mode = select_directory_mode()
-        if mode == "back":
+        if is_back(mode):
             return
+
         root_path = input_directory_path()
+        if is_back(root_path):
+            return
+
         include_tree = None
         export_format = None
         output_dir = None
@@ -135,6 +158,8 @@ def handle_scan(profile_settings=None):
     elif mode == "multi":
         subdirs = get_subdirectories(root_path)
         selected = select_multiple_directories(subdirs)
+        if is_back(selected):
+            return
         for directory in selected:
             result = scan_directory(directory)
             if result:
@@ -154,42 +179,44 @@ def handle_scan(profile_settings=None):
         console.print(tree)
         show_preview(result)
 
-    if not confirm_action("Продолжить запись?"):
+    proceed = confirm_action("Продолжить запись?")
+    if is_back(proceed) or not proceed:
         console.print("[yellow]Операция отменена[/yellow]")
         return
 
     if include_tree is None:
         include_tree = toggle_tree_view()
+        if is_back(include_tree):
+            return
 
     processed_results = []
     for result in scan_results:
         processed = apply_redaction(result)
+        if is_back(processed):
+            return
         processed_results.append(processed)
 
     filename = input_filename()
+    if is_back(filename):
+        return
 
     if export_format is None:
         export_format = select_export_format()
-
-    if export_format == "back":
-        return
+        if is_back(export_format):
+            return
 
     if output_dir is None:
         default_dir = processed_results[0]["root"]
         output_dir = select_output_directory(default_dir)
-
-    if output_dir is None:
-        console.print("[yellow]Операция отменена[/yellow]")
-        return
+        if is_back(output_dir):
+            return
 
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     for result in processed_results:
         final_name = handle_filename_conflict(output_dir, filename, export_format)
-
-        if final_name is None:
-            console.print("[yellow]Операция отменена[/yellow]")
+        if is_back(final_name):
             return
 
         output_file = export(result, final_name, export_format, output_dir, include_tree)
@@ -202,6 +229,9 @@ def handle_convert():
     console.print("[bold cyan]Конвертация из существующей сессии[/bold cyan]\n")
 
     root_path = input_directory_path()
+    if is_back(root_path):
+        return
+
     sessions = list_sessions_in_directory(root_path)
 
     if not sessions:
@@ -209,8 +239,7 @@ def handle_convert():
         return
 
     selected = select_session(sessions)
-
-    if selected == "back" or selected is None:
+    if is_back(selected):
         return
 
     session_data = load_session(selected)
@@ -227,8 +256,7 @@ def handle_convert():
         if status == "modified":
             console.print("[bold yellow]⚠ Отчёт был изменён вручную[/bold yellow]")
             action = select_modification_action()
-
-            if action == "back":
+            if is_back(action):
                 return
 
             if action == "rescan":
@@ -246,28 +274,31 @@ def handle_convert():
         current_format = Path(report_path).suffix.lstrip(".")
 
     target_format = select_convert_format(current_format)
-
-    if target_format == "back":
+    if is_back(target_format):
         return
 
     include_tree = toggle_tree_view()
+    if is_back(include_tree):
+        return
+
     scan_data = apply_redaction(session_data["scan_data"])
+    if is_back(scan_data):
+        return
+
     filename = input_filename()
+    if is_back(filename):
+        return
 
     default_dir = str(selected)
     output_dir = select_output_directory(default_dir)
-
-    if output_dir is None:
-        console.print("[yellow]Операция отменена[/yellow]")
+    if is_back(output_dir):
         return
 
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     final_name = handle_filename_conflict(output_dir, filename, target_format)
-
-    if final_name is None:
-        console.print("[yellow]Операция отменена[/yellow]")
+    if is_back(final_name):
         return
 
     output_file = export(scan_data, final_name, target_format, output_dir, include_tree)
@@ -285,6 +316,9 @@ def handle_delete():
     console.print("[bold cyan]Удаление записи[/bold cyan]\n")
 
     root_path = input_directory_path()
+    if is_back(root_path):
+        return
+
     sessions = list_sessions_in_directory(root_path)
 
     if not sessions:
@@ -292,8 +326,7 @@ def handle_delete():
         return
 
     selected = select_session(sessions)
-
-    if selected == "back" or selected is None:
+    if is_back(selected):
         return
 
     report_files = find_report_files(selected)
@@ -310,9 +343,15 @@ def handle_delete():
         console.print("")
 
         selected_files = select_report_files(report_files)
+        if is_back(selected_files):
+            return
 
         for file in selected_files:
-            if confirm_action(f"Удалить файл {file.name}?"):
+            confirm = confirm_action(f"Удалить файл {file.name}?")
+            if is_back(confirm):
+                return
+
+            if confirm:
                 try:
                     file.unlink()
                     console.print(f"[green]✓ Удалён: {file.name}[/green]")
@@ -324,7 +363,11 @@ def handle_delete():
     session_dir = Path(selected) / ".context_builder"
 
     if session_dir.exists():
-        if confirm_action("Удалить также данные сессии (.context_builder)?"):
+        confirm = confirm_action("Удалить также данные сессии (.context_builder)?")
+        if is_back(confirm):
+            return
+
+        if confirm:
             try:
                 for file in session_dir.iterdir():
                     file.unlink()
@@ -336,81 +379,12 @@ def handle_delete():
             console.print("[yellow]Данные сессии сохранены[/yellow]")
 
 
-def handle_settings():
-    while True:
-        choice = settings_menu()
-
-        if choice == "← Назад":
-            break
-
-        elif choice == "Сохранить текущий профиль":
-            name = input_profile_name()
-            settings = {
-                "mode": "single",
-                "root_path": "",
-                "include_tree": True,
-                "export_format": "txt",
-                "output_dir": None,
-            }
-
-            root = input_directory_path()
-            settings["root_path"] = root
-
-            mode = select_directory_mode()
-            if mode != "back":
-                settings["mode"] = mode
-
-            settings["include_tree"] = toggle_tree_view()
-
-            fmt = select_export_format()
-            if fmt != "back":
-                settings["export_format"] = fmt
-
-            out_dir = select_output_directory(root)
-            if out_dir is not None:
-                settings["output_dir"] = out_dir
-
-            path = save_profile(name, settings)
-            console.print(f"[bold green]✓ Профиль сохранён: {path}[/bold green]")
-
-        elif choice == "Загрузить профиль":
-            profiles = list_profiles()
-            selected = select_profile(profiles)
-
-            if selected and selected != "back":
-                settings = load_profile(selected)
-                if settings:
-                    console.print(f"[green]✓ Профиль '{selected}' загружен[/green]")
-                    handle_scan(profile_settings=settings)
-                else:
-                    console.print("[red]Ошибка загрузки профиля[/red]")
-
-        elif choice == "Удалить профиль":
-            profiles = list_profiles()
-            selected = select_profile(profiles)
-
-            if selected and selected != "back":
-                if confirm_action(f"Удалить профиль '{selected}'?"):
-                    if delete_profile(selected):
-                        console.print(f"[green]✓ Профиль '{selected}' удалён[/green]")
-                    else:
-                        console.print("[red]Профиль не найден[/red]")
-
-        elif choice == "Список профилей":
-            profiles = list_profiles()
-            if profiles:
-                console.print("\n[bold]Сохранённые профили:[/bold]")
-                for p in profiles:
-                    console.print(f"  [cyan]• {p}[/cyan]")
-                console.print("")
-            else:
-                console.print("[yellow]Нет сохранённых профилей[/yellow]")
-
-
 def handle_select_files():
     console.print("[bold cyan]Выбор файлов в директориях[/bold cyan]\n")
 
     root_path = input_directory_path()
+    if is_back(root_path):
+        return
 
     console.print("[dim]Сканирование файлов...[/dim]")
     all_files = collect_text_files(root_path)
@@ -422,8 +396,7 @@ def handle_select_files():
     console.print(f"[green]Найдено файлов: {len(all_files)}[/green]\n")
 
     filter_mode = select_file_filter_mode()
-
-    if filter_mode == "back":
+    if is_back(filter_mode):
         return
 
     if filter_mode == "all":
@@ -431,6 +404,9 @@ def handle_select_files():
 
     elif filter_mode == "extension":
         raw = input_extensions()
+        if is_back(raw):
+            return
+
         extensions = [e.strip() for e in raw.split(",")]
         filtered = filter_by_extensions(all_files, extensions)
 
@@ -442,6 +418,9 @@ def handle_select_files():
 
     elif filter_mode == "search":
         query = input_search_query()
+        if is_back(query):
+            return
+
         filtered = filter_by_name(all_files, query)
 
         if not filtered:
@@ -454,9 +433,7 @@ def handle_select_files():
         return
 
     selected_files = select_files_from_list(filtered)
-
-    if not selected_files:
-        console.print("[yellow]Файлы не выбраны[/yellow]")
+    if is_back(selected_files):
         return
 
     console.print(f"\n[bold]Выбрано файлов: {len(selected_files)}[/bold]")
@@ -467,31 +444,36 @@ def handle_select_files():
     console.print(tree)
     show_preview(scan_result)
 
-    if not confirm_action("Продолжить запись?"):
+    proceed = confirm_action("Продолжить запись?")
+    if is_back(proceed) or not proceed:
         console.print("[yellow]Операция отменена[/yellow]")
         return
 
     include_tree = toggle_tree_view()
-    scan_result = apply_redaction(scan_result)
-    filename = input_filename()
-    export_format = select_export_format()
+    if is_back(include_tree):
+        return
 
-    if export_format == "back":
+    scan_result = apply_redaction(scan_result)
+    if is_back(scan_result):
+        return
+
+    filename = input_filename()
+    if is_back(filename):
+        return
+
+    export_format = select_export_format()
+    if is_back(export_format):
         return
 
     output_dir = select_output_directory(root_path)
-
-    if output_dir is None:
-        console.print("[yellow]Операция отменена[/yellow]")
+    if is_back(output_dir):
         return
 
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     final_name = handle_filename_conflict(output_dir, filename, export_format)
-
-    if final_name is None:
-        console.print("[yellow]Операция отменена[/yellow]")
+    if is_back(final_name):
         return
 
     output_file = export(scan_result, final_name, export_format, output_dir, include_tree)
@@ -500,25 +482,104 @@ def handle_select_files():
     handle_post_export(output_file)
 
 
+def handle_settings():
+    while True:
+        choice = settings_menu()
+
+        if is_back(choice):
+            break
+
+        elif choice == "save":
+            name = input_profile_name()
+            if is_back(name):
+                continue
+
+            settings = {
+                "mode": "single",
+                "root_path": "",
+                "include_tree": True,
+                "export_format": "txt",
+                "output_dir": None,
+            }
+
+            root = input_directory_path()
+            if is_back(root):
+                continue
+            settings["root_path"] = root
+
+            mode = select_directory_mode()
+            if not is_back(mode):
+                settings["mode"] = mode
+
+            tree = toggle_tree_view()
+            if not is_back(tree):
+                settings["include_tree"] = tree
+
+            fmt = select_export_format()
+            if not is_back(fmt):
+                settings["export_format"] = fmt
+
+            out_dir = select_output_directory(root)
+            if not is_back(out_dir):
+                settings["output_dir"] = out_dir
+
+            path = save_profile(name, settings)
+            console.print(f"[bold green]✓ Профиль сохранён: {path}[/bold green]")
+
+        elif choice == "load":
+            profiles = list_profiles()
+            selected = select_profile(profiles)
+
+            if not is_back(selected):
+                settings = load_profile(selected)
+                if settings:
+                    console.print(f"[green]✓ Профиль '{selected}' загружен[/green]")
+                    handle_scan(profile_settings=settings)
+                else:
+                    console.print("[red]Ошибка загрузки профиля[/red]")
+
+        elif choice == "delete":
+            profiles = list_profiles()
+            selected = select_profile(profiles)
+
+            if not is_back(selected):
+                confirm = confirm_action(f"Удалить профиль '{selected}'?")
+                if not is_back(confirm) and confirm:
+                    if delete_profile(selected):
+                        console.print(f"[green]✓ Профиль '{selected}' удалён[/green]")
+                    else:
+                        console.print("[red]Профиль не найден[/red]")
+
+        elif choice == "list":
+            profiles = list_profiles()
+            if profiles:
+                console.print("\n[bold]Сохранённые профили:[/bold]")
+                for p in profiles:
+                    console.print(f"  [cyan]• {p}[/cyan]")
+                console.print("")
+            else:
+                console.print("[yellow]Нет сохранённых профилей[/yellow]")
+
+
 def main():
     show_welcome()
 
     while True:
         choice = main_menu()
 
-        if choice == "Сканирование (Запись)":
+        if choice == "scan":
             handle_scan()
-        elif choice == "Конвертация":
+        elif choice == "convert":
             handle_convert()
-        elif choice == "Переконвертация":
+        elif choice == "reconvert":
             handle_reconvert()
-        elif choice == "Удаление записи":
+        elif choice == "delete":
             handle_delete()
-        elif choice == "Выбор файлов в директориях":
+        elif choice == "files":
             handle_select_files()
-        elif choice == "Настройки":
+        elif choice == "settings":
             handle_settings()
-        elif choice == "Выход":
+        elif choice == EXIT_VALUE or is_back(choice):
             console.print("[bold cyan]До свидания![/bold cyan]")
             break
 

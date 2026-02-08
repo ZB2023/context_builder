@@ -1,69 +1,146 @@
 from InquirerPy import inquirer
+from InquirerPy.base.control import Choice
 from rich.console import Console
 from rich.panel import Panel
 
 console = Console()
+
+BACK_VALUE = "__BACK__"
+EXIT_VALUE = "__EXIT__"
 
 
 def show_welcome():
     console.print(
         Panel(
             "[bold cyan]Context Builder[/bold cyan]\n"
-            "[dim]Инструмент для сканирования и экспорта структуры проектов[/dim]",
+            "[dim]Инструмент для сканирования и экспорта структуры проектов[/dim]\n"
+            "[dim]Нажмите Escape или выберите ← Назад для возврата[/dim]",
             border_style="bright_blue",
             padding=(1, 4),
         )
     )
 
 
+def _prompt_select(message, choices, back=True):
+    if back:
+        choices = choices + [Choice(value=BACK_VALUE, name="← Назад")]
+
+    try:
+        result = inquirer.select(
+            message=message,
+            choices=choices,
+            pointer="→",
+            mandatory=False,
+        ).execute()
+
+        if result is None:
+            return BACK_VALUE
+
+        return result
+    except KeyboardInterrupt:
+        return BACK_VALUE
+
+
+def _prompt_text(message, default="", validate=None, invalid_message="Некорректный ввод"):
+    try:
+        result = inquirer.text(
+            message=message,
+            default=default,
+            validate=validate,
+            invalid_message=invalid_message,
+            mandatory=False,
+        ).execute()
+
+        if result is None:
+            return BACK_VALUE
+
+        return result
+    except KeyboardInterrupt:
+        return BACK_VALUE
+
+
+def _prompt_filepath(message, only_directories=False):
+    try:
+        result = inquirer.filepath(
+            message=message,
+            only_directories=only_directories,
+            validate=lambda path: len(path.strip()) > 0,
+            invalid_message="Путь не может быть пустым",
+            mandatory=False,
+        ).execute()
+
+        if result is None or not result.strip():
+            return BACK_VALUE
+
+        return result
+    except KeyboardInterrupt:
+        return BACK_VALUE
+
+
+def _prompt_confirm(message, default=False):
+    try:
+        result = inquirer.confirm(
+            message=message,
+            default=default,
+            mandatory=False,
+        ).execute()
+
+        if result is None:
+            return BACK_VALUE
+
+        return result
+    except KeyboardInterrupt:
+        return BACK_VALUE
+
+
+def _prompt_checkbox(message, choices, validate=None, invalid_message="Выберите хотя бы один вариант"):
+    try:
+        result = inquirer.checkbox(
+            message=message,
+            choices=choices,
+            validate=validate,
+            invalid_message=invalid_message,
+            mandatory=False,
+        ).execute()
+
+        if result is None:
+            return BACK_VALUE
+
+        return result
+    except KeyboardInterrupt:
+        return BACK_VALUE
+
+
 def main_menu():
     choices = [
-        "Сканирование (Запись)",
-        "Конвертация",
-        "Переконвертация",
-        "Удаление записи",
-        "Выбор файлов в директориях",
-        "Настройки",
-        "Выход",
+        Choice(value="scan", name="Сканирование (Запись)"),
+        Choice(value="convert", name="Конвертация"),
+        Choice(value="reconvert", name="Переконвертация"),
+        Choice(value="delete", name="Удаление записи"),
+        Choice(value="files", name="Выбор файлов в директориях"),
+        Choice(value="settings", name="Настройки"),
+        Choice(value=EXIT_VALUE, name="Выход"),
     ]
 
-    return inquirer.select(
-        message="Главное меню — выберите действие:",
-        choices=choices,
-        pointer="→",
-    ).execute()
+    return _prompt_select("Главное меню — выберите действие:", choices, back=False)
 
 
 def select_directory_mode():
     choices = [
-        {"name": "Одиночный — выбор одной папки", "value": "single"},
-        {"name": "Множественный — выбор нескольких папок", "value": "multi"},
-        {"name": "Все вложенные — все папки внутри выбранной", "value": "recursive"},
-        {"name": "← Назад", "value": "back"},
+        Choice(value="single", name="Одиночный — выбор одной папки"),
+        Choice(value="multi", name="Множественный — выбор нескольких папок"),
+        Choice(value="recursive", name="Все вложенные — все папки внутри выбранной"),
     ]
 
-    return inquirer.select(
-        message="Режим выбора директорий:",
-        choices=choices,
-        pointer="→",
-    ).execute()
+    return _prompt_select("Режим выбора директорий:", choices)
 
 
 def input_directory_path():
-    return inquirer.filepath(
-        message="Укажите путь к директории:",
-        only_directories=True,
-        validate=lambda path: len(path) > 0,
-        invalid_message="Путь не может быть пустым",
-    ).execute()
+    return _prompt_filepath("Укажите путь к директории:", only_directories=True)
 
 
 def input_file_path():
-    return inquirer.filepath(
-        message="Укажите путь к файлу:",
-        validate=lambda path: len(path) > 0,
-        invalid_message="Путь не может быть пустым",
-    ).execute()
+    return _prompt_filepath("Укажите путь к файлу:")
 
 
 def input_filename():
@@ -71,27 +148,22 @@ def input_filename():
 
     default_name = f"scan_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
-    return inquirer.text(
-        message="Название файла (без расширения):",
+    return _prompt_text(
+        "Название файла (без расширения):",
         default=default_name,
         validate=lambda name: len(name.strip()) > 0,
         invalid_message="Название не может быть пустым",
-    ).execute()
+    )
 
 
 def select_export_format():
     choices = [
-        {"name": "TXT — текстовый файл", "value": "txt"},
-        {"name": "MD — Markdown", "value": "md"},
-        {"name": "JSON — структурированные данные", "value": "json"},
-        {"name": "← Назад", "value": "back"},
+        Choice(value="txt", name="TXT — текстовый файл"),
+        Choice(value="md", name="MD — Markdown"),
+        Choice(value="json", name="JSON — структурированные данные"),
     ]
 
-    return inquirer.select(
-        message="Формат экспорта:",
-        choices=choices,
-        pointer="→",
-    ).execute()
+    return _prompt_select("Формат экспорта:", choices)
 
 
 def select_convert_format(current_format):
@@ -102,242 +174,203 @@ def select_convert_format(current_format):
     }
 
     choices = [
-        {"name": name, "value": fmt}
+        Choice(value=fmt, name=name)
         for fmt, name in all_formats.items()
         if fmt != current_format
     ]
-    choices.append({"name": "← Назад", "value": "back"})
 
-    return inquirer.select(
-        message=f"Текущий формат: {current_format.upper()}. Выберите целевой формат:",
-        choices=choices,
-        pointer="→",
-    ).execute()
+    return _prompt_select(
+        f"Текущий формат: {current_format.upper()}. Выберите целевой формат:",
+        choices,
+    )
 
 
 def confirm_action(message):
-    return inquirer.confirm(
-        message=message,
-        default=False,
-    ).execute()
+    return _prompt_confirm(message)
 
 
 def select_multiple_directories(directories):
     if not directories:
         console.print("[bold red]Нет доступных директорий[/bold red]")
-        return []
+        return BACK_VALUE
 
-    choices = [{"name": str(d), "value": d} for d in directories]
+    choices = [Choice(value=d, name=str(d)) for d in directories]
 
-    return inquirer.checkbox(
-        message="Выберите директории (Пробел — отметить, Enter — подтвердить):",
-        choices=choices,
+    return _prompt_checkbox(
+        "Выберите директории (Пробел — отметить, Enter — подтвердить):",
+        choices,
         validate=lambda result: len(result) > 0,
         invalid_message="Выберите хотя бы одну директорию",
-    ).execute()
+    )
 
 
 def select_session(sessions):
     if not sessions:
         console.print("[bold red]Нет доступных сессий[/bold red]")
-        return None
+        return BACK_VALUE
 
-    choices = [{"name": str(s), "value": s} for s in sessions]
-    choices.append({"name": "← Назад", "value": "back"})
+    choices = [Choice(value=s, name=str(s)) for s in sessions]
 
-    return inquirer.select(
-        message="Выберите сессию:",
-        choices=choices,
-        pointer="→",
-    ).execute()
+    return _prompt_select("Выберите сессию:", choices)
 
 
 def select_modification_action():
     choices = [
-        {"name": "Пересканировать директорию", "value": "rescan"},
-        {"name": "Использовать старые данные", "value": "use_old"},
-        {"name": "← Назад", "value": "back"},
+        Choice(value="rescan", name="Пересканировать директорию"),
+        Choice(value="use_old", name="Использовать старые данные"),
     ]
 
-    return inquirer.select(
-        message="Файл отчёта был изменён вручную. Что делать?",
-        choices=choices,
-        pointer="→",
-    ).execute()
+    return _prompt_select("Файл отчёта был изменён вручную. Что делать?", choices)
 
 
 def select_report_files(files):
     if not files:
         console.print("[bold red]Нет файлов для выбора[/bold red]")
-        return []
+        return BACK_VALUE
 
-    choices = [{"name": f"{f.name} ({f.suffix})", "value": f} for f in files]
+    choices = [
+        Choice(value=f, name=f"{f.name} ({f.suffix})")
+        for f in files
+    ]
 
-    return inquirer.checkbox(
-        message="Выберите файлы для удаления (Пробел — отметить, Enter — подтвердить):",
-        choices=choices,
+    return _prompt_checkbox(
+        "Выберите файлы для удаления (Пробел — отметить, Enter — подтвердить):",
+        choices,
         validate=lambda result: len(result) > 0,
         invalid_message="Выберите хотя бы один файл",
-    ).execute()
+    )
 
 
 def toggle_tree_view():
-    return inquirer.confirm(
-        message="Включить дерево структуры в отчёт?",
-        default=True,
-    ).execute()
+    return _prompt_confirm("Включить дерево структуры в отчёт?", default=True)
+
+
+def toggle_redaction():
+    return _prompt_confirm(
+        "Включить цензуру конфиденциальных данных (пароли, ключи, email)?",
+        default=False,
+    )
+
+
+def select_redaction_patterns(patterns):
+    choices = [
+        Choice(value=p, name=p, enabled=True)
+        for p in patterns
+    ]
+
+    return _prompt_checkbox(
+        "Выберите типы данных для цензуры (Пробел — переключить):",
+        choices,
+        validate=lambda result: len(result) > 0,
+        invalid_message="Выберите хотя бы один тип",
+    )
 
 
 def select_overwrite_action(filepath):
     choices = [
-        {"name": "Перезаписать файл", "value": "overwrite"},
-        {"name": "Добавить номер к имени", "value": "rename"},
-        {"name": "Ввести другое имя", "value": "new_name"},
-        {"name": "← Отмена", "value": "cancel"},
+        Choice(value="overwrite", name="Перезаписать файл"),
+        Choice(value="rename", name="Добавить номер к имени"),
+        Choice(value="new_name", name="Ввести другое имя"),
     ]
 
-    return inquirer.select(
-        message=f"Файл {filepath} уже существует. Что делать?",
-        choices=choices,
-        pointer="→",
-    ).execute()
-
-
-def toggle_redaction():
-    return inquirer.confirm(
-        message="Включить цензуру конфиденциальных данных (пароли, ключи, email)?",
-        default=False,
-    ).execute()
-
-
-def select_redaction_patterns(patterns):
-    choices = [{"name": p, "value": p, "enabled": True} for p in patterns]
-
-    return inquirer.checkbox(
-        message="Выберите типы данных для цензуры (Пробел — переключить):",
-        choices=choices,
-        validate=lambda result: len(result) > 0,
-        invalid_message="Выберите хотя бы один тип",
-    ).execute()
-
-
-def select_profile(profiles):
-    if not profiles:
-        console.print("[bold red]Нет сохранённых профилей[/bold red]")
-        return None
-
-    choices = [{"name": p, "value": p} for p in profiles]
-    choices.append({"name": "← Назад", "value": "back"})
-
-    return inquirer.select(
-        message="Выберите профиль:",
-        choices=choices,
-        pointer="→",
-    ).execute()
-
-
-def input_profile_name():
-    return inquirer.text(
-        message="Название профиля:",
-        validate=lambda name: len(name.strip()) > 0,
-        invalid_message="Название не может быть пустым",
-    ).execute()
-
-
-def settings_menu():
-    choices = [
-        "Сохранить текущий профиль",
-        "Загрузить профиль",
-        "Удалить профиль",
-        "Список профилей",
-        "← Назад",
-    ]
-
-    return inquirer.select(
-        message="Настройки:",
-        choices=choices,
-        pointer="→",
-    ).execute()
-
-
-def select_copy_to_clipboard():
-    return inquirer.confirm(
-        message="Скопировать результат в буфер обмена?",
-        default=False,
-    ).execute()
+    return _prompt_select(f"Файл {filepath} уже существует. Что делать?", choices)
 
 
 def select_output_directory(default_dir):
     choices = [
-        {"name": f"В сканируемую директорию ({default_dir})", "value": "default"},
-        {"name": "Указать другую директорию", "value": "custom"},
-        {"name": "← Назад", "value": "back"},
+        Choice(value="default", name=f"В сканируемую директорию ({default_dir})"),
+        Choice(value="custom", name="Указать другую директорию"),
     ]
 
-    result = inquirer.select(
-        message="Куда сохранить отчёт?",
-        choices=choices,
-        pointer="→",
-    ).execute()
+    result = _prompt_select("Куда сохранить отчёт?", choices)
+
+    if result == BACK_VALUE:
+        return BACK_VALUE
 
     if result == "default":
         return str(default_dir)
 
     if result == "custom":
-        return inquirer.filepath(
-            message="Укажите директорию для сохранения:",
-            only_directories=True,
-            validate=lambda path: len(path) > 0,
-            invalid_message="Путь не может быть пустым",
-        ).execute()
+        return _prompt_filepath("Укажите директорию для сохранения:", only_directories=True)
 
-    return None
+    return BACK_VALUE
+
+
+def select_profile(profiles):
+    if not profiles:
+        console.print("[bold red]Нет сохранённых профилей[/bold red]")
+        return BACK_VALUE
+
+    choices = [Choice(value=p, name=p) for p in profiles]
+
+    return _prompt_select("Выберите профиль:", choices)
+
+
+def input_profile_name():
+    return _prompt_text(
+        "Название профиля:",
+        validate=lambda name: len(name.strip()) > 0,
+        invalid_message="Название не может быть пустым",
+    )
+
+
+def settings_menu():
+    choices = [
+        Choice(value="save", name="Сохранить текущий профиль"),
+        Choice(value="load", name="Загрузить профиль"),
+        Choice(value="delete", name="Удалить профиль"),
+        Choice(value="list", name="Список профилей"),
+    ]
+
+    return _prompt_select("Настройки:", choices)
+
+
+def select_copy_to_clipboard():
+    return _prompt_confirm("Скопировать результат в буфер обмена?", default=False)
 
 
 def select_files_from_list(files):
     if not files:
         console.print("[bold red]Нет файлов для выбора[/bold red]")
-        return []
+        return BACK_VALUE
 
     choices = [
-        {"name": f"📄 {f.relative_to(f.parent.parent) if len(f.parts) > 2 else f.name} ({f.suffix})", "value": f}
+        Choice(
+            value=f,
+            name=f"📄 {f.relative_to(f.parent.parent) if len(f.parts) > 2 else f.name} ({f.suffix})",
+        )
         for f in files
     ]
 
-    return inquirer.checkbox(
-        message="Выберите файлы (Пробел — отметить, Enter — подтвердить):",
-        choices=choices,
+    return _prompt_checkbox(
+        "Выберите файлы (Пробел — отметить, Enter — подтвердить):",
+        choices,
         validate=lambda result: len(result) > 0,
         invalid_message="Выберите хотя бы один файл",
-    ).execute()
+    )
 
 
 def select_file_filter_mode():
     choices = [
-        {"name": "Все текстовые файлы", "value": "all"},
-        {"name": "Фильтр по расширению (.py, .js, ...)", "value": "extension"},
-        {"name": "Поиск по имени", "value": "search"},
-        {"name": "← Назад", "value": "back"},
+        Choice(value="all", name="Все текстовые файлы"),
+        Choice(value="extension", name="Фильтр по расширению (.py, .js, ...)"),
+        Choice(value="search", name="Поиск по имени"),
     ]
 
-    return inquirer.select(
-        message="Как отфильтровать файлы?",
-        choices=choices,
-        pointer="→",
-    ).execute()
+    return _prompt_select("Как отфильтровать файлы?", choices)
 
 
 def input_extensions():
-    return inquirer.text(
-        message="Введите расширения через запятую (например: .py, .js, .txt):",
+    return _prompt_text(
+        "Введите расширения через запятую (например: .py, .js, .txt):",
         validate=lambda val: len(val.strip()) > 0,
         invalid_message="Введите хотя бы одно расширение",
-    ).execute()
+    )
 
 
 def input_search_query():
-    return inquirer.text(
-        message="Введите часть имени файла для поиска:",
+    return _prompt_text(
+        "Введите часть имени файла для поиска:",
         validate=lambda val: len(val.strip()) > 0,
         invalid_message="Поисковый запрос не может быть пустым",
-    ).execute()
+    )
