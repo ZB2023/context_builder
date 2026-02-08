@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QAbstractItemView,
 )
+from PySide6.QtCore import Qt
 
 from gui.widgets import DirectoryPicker
 
@@ -36,8 +37,8 @@ class DeleteTab(QWidget):
         self.dir_picker = DirectoryPicker("Директория с отчётами...")
         source_layout.addWidget(self.dir_picker)
 
-        self.search_button = QPushButton("🔍 Найти отчёты")
-        self.search_button.clicked.connect(self._search_files)
+        self.search_button = QPushButton("Найти отчёты")
+        self.search_button.setCursor(Qt.CursorShape.PointingHandCursor)
         source_layout.addWidget(self.search_button)
 
         layout.addWidget(source_group)
@@ -52,8 +53,9 @@ class DeleteTab(QWidget):
         self.delete_session_check = QCheckBox("Также удалить данные сессии (.context_builder)")
         files_layout.addWidget(self.delete_session_check)
 
-        self.delete_button = QPushButton("🗑️ Удалить выбранные")
-        self.delete_button.setObjectName("danger")
+        self.delete_button = QPushButton("Удалить выбранные")
+        self.delete_button.setProperty("cssClass", "danger")
+        self.delete_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.delete_button.setEnabled(False)
         self.delete_button.clicked.connect(self._delete_files)
         files_layout.addWidget(self.delete_button)

@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QMessageBox,
 )
+from PySide6.QtCore import Qt
 
 from gui.widgets import DirectoryPicker, FileTreeWidget
 from gui.workers import ScanWorker, ExportWorker
@@ -39,9 +40,9 @@ class ScanTab(QWidget):
         self.dir_picker = DirectoryPicker("Путь к директории для сканирования...")
         source_layout.addWidget(self.dir_picker)
 
-        self.scan_button = QPushButton("🔍 Сканировать")
+        self.scan_button = QPushButton("Сканировать")
+        self.scan_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.scan_button.clicked.connect(self._start_scan)
-        source_layout.addWidget(self.scan_button)
 
         layout.addWidget(source_group)
 
@@ -87,11 +88,11 @@ class ScanTab(QWidget):
         options_layout.addWidget(self.redact_check)
         export_layout.addLayout(options_layout)
 
-        self.export_button = QPushButton("💾 Создать отчёт")
-        self.export_button.setObjectName("success")
+        self.export_button = QPushButton("Создать отчёт")
+        self.export_button.setProperty("cssClass", "success")
+        self.export_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.export_button.setEnabled(False)
         self.export_button.clicked.connect(self._start_export)
-        export_layout.addWidget(self.export_button)
 
         layout.addWidget(export_group)
 

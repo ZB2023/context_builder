@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QHBoxLayout,
 )
+from PySide6.QtCore import Qt
 
 from src.config import save_profile, load_profile, list_profiles, delete_profile
 
@@ -33,7 +34,9 @@ class SettingsTab(QWidget):
         self.profile_list = QListWidget()
         profiles_layout.addWidget(self.profile_list)
 
-        self.refresh_button = QPushButton("🔄 Обновить список")
+        self.refresh_button = QPushButton("Обновить список")
+        self.refresh_button.setProperty("cssClass", "secondary")
+        self.refresh_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.refresh_button.clicked.connect(self._refresh_profiles)
         profiles_layout.addWidget(self.refresh_button)
 
@@ -46,13 +49,15 @@ class SettingsTab(QWidget):
 
         buttons_layout = QHBoxLayout()
 
-        self.save_button = QPushButton("💾 Сохранить")
-        self.save_button.setObjectName("success")
+        self.save_button = QPushButton("Сохранить")
+        self.save_button.setProperty("cssClass", "success")
+        self.save_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_button.clicked.connect(self._save_profile)
         buttons_layout.addWidget(self.save_button)
 
-        self.delete_button = QPushButton("🗑️ Удалить")
-        self.delete_button.setObjectName("danger")
+        self.delete_button = QPushButton("Удалить")
+        self.delete_button.setProperty("cssClass", "danger")
+        self.delete_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.delete_button.clicked.connect(self._delete_profile)
         buttons_layout.addWidget(self.delete_button)
 

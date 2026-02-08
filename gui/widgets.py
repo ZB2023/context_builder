@@ -17,12 +17,15 @@ class DirectoryPicker(QWidget):
         super().__init__()
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
 
         self.path_input = QLineEdit()
         self.path_input.setPlaceholderText(placeholder)
 
         self.browse_button = QPushButton("Обзор")
+        self.browse_button.setProperty("cssClass", "secondary")
         self.browse_button.setFixedWidth(100)
+        self.browse_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.browse_button.clicked.connect(self._browse)
 
         layout.addWidget(self.path_input)
@@ -44,16 +47,19 @@ class FileTreeWidget(QTreeWidget):
     def __init__(self):
         super().__init__()
         self.setHeaderLabels(["Имя", "Тип", "Размер"])
-        self.setColumnWidth(0, 350)
+        self.setColumnWidth(0, 400)
         self.setColumnWidth(1, 100)
         self.setColumnWidth(2, 100)
         self.setAlternatingRowColors(True)
+        self.setAnimated(True)
+        self.setIndentation(20)
 
     def load_scan_result(self, scan_result):
         self.clear()
         nodes = {}
 
-        root_item = QTreeWidgetItem(self, [scan_result["root"], "Корень", ""])
+        root_name = Path(scan_result["root"]).name or scan_result["root"]
+        root_item = QTreeWidgetItem(self, [root_name, "Корень", ""])
         root_item.setExpanded(True)
         nodes["."] = root_item
 
@@ -63,13 +69,11 @@ class FileTreeWidget(QTreeWidget):
             parent_node = nodes.get(parent_key, root_item)
 
             if item["type"] == "directory":
-                icon = "📁"
                 type_text = "Папка"
             else:
-                icon = "📄"
                 type_text = path.suffix or "Файл"
 
-            node = QTreeWidgetItem(parent_node, [f"{icon} {path.name}", type_text, ""])
+            node = QTreeWidgetItem(parent_node, [path.name, type_text, ""])
 
             if item["type"] == "directory":
                 nodes[str(path)] = node
@@ -86,7 +90,7 @@ class FileTreeWidget(QTreeWidget):
                     break
 
     def _find_node(self, node, name):
-        if name in node.text(0):
+        if name == node.text(0):
             return node
         for i in range(node.childCount()):
             result = self._find_node(node.child(i), name)
