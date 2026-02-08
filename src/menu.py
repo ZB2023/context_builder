@@ -161,6 +161,7 @@ def select_export_format():
         Choice(value="txt", name="TXT — текстовый файл"),
         Choice(value="md", name="MD — Markdown"),
         Choice(value="json", name="JSON — структурированные данные"),
+        Choice(value="pdf", name="PDF — документ"),
     ]
 
     return _prompt_select("Формат экспорта:", choices)
@@ -171,6 +172,7 @@ def select_convert_format(current_format):
         "txt": "TXT — текстовый файл",
         "md": "MD — Markdown",
         "json": "JSON — структурированные данные",
+        "pdf": "PDF — документ",
     }
 
     choices = [
@@ -374,3 +376,11 @@ def input_search_query():
         validate=lambda val: len(val.strip()) > 0,
         invalid_message="Поисковый запрос не может быть пустым",
     )
+
+def select_pdf_source_mode():
+    choices = [
+        Choice(value="session", name="Из сохранённой сессии (структурированная конвертация)"),
+        Choice(value="file", name="Из PDF файла (извлечение текста)"),
+    ]
+
+    return _prompt_select("Источник для конвертации:", choices)

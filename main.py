@@ -10,11 +10,13 @@ from src.menu import (
     main_menu,
     select_directory_mode,
     input_directory_path,
+    input_file_path,
     input_filename,
     input_profile_name,
     select_export_format,
     select_convert_format,
     select_output_directory,
+    select_pdf_source_mode,
     confirm_action,
     select_multiple_directories,
     select_session,
@@ -49,7 +51,7 @@ from src.session import (
 )
 from src.preview import show_preview
 from src.exporter import export
-from src.converter import detect_modification
+from src.converter import detect_modification, convert_pdf_to_format
 from src.redactor import redact_scan_result, get_available_patterns
 from src.clipboard import copy_to_clipboard
 from src.config import save_profile, load_profile, list_profiles, delete_profile
@@ -302,13 +304,15 @@ def handle_scan(profile_settings=None):
 
 
 def handle_convert():
-    console.print("[bold cyan]Конвертация из существующей сессии[/bold cyan]\n")
+    console.print("[bold cyan]Конвертация[/bold cyan]\n")
 
     step = 1
     state = {
+        "source_mode": None,
         "root_path": None,
         "selected_session": None,
         "session_data": None,
+        "pdf_path": None,
         "target_format": None,
         "include_tree": None,
         "scan_data": None,
@@ -318,30 +322,42 @@ def handle_convert():
 
     while True:
         if step == 1:
-            root_path = input_directory_path()
-            if is_back(root_path):
+            source_mode = select_pdf_source_mode()
+            if is_back(source_mode):
                 return
-            state["root_path"] = root_path
-            step = 2
+            state["source_mode"] = source_mode
+
+            if source_mode == "file":
+                step = 20
+            else:
+                step = 2
 
         elif step == 2:
+            root_path = input_directory_path()
+            if is_back(root_path):
+                step = 1
+                continue
+            state["root_path"] = root_path
+            step = 3
+
+        elif step == 3:
             sessions = list_sessions_in_directory(state["root_path"])
 
             if not sessions:
                 console.print("[bold red]Сессии не найдены. Сначала выполните сканирование.[/bold red]")
-                step = 1
+                step = 2
                 continue
 
             selected = select_session(sessions)
             if is_back(selected):
-                step = 1
+                step = 2
                 continue
 
             session_data = load_session(selected)
 
             if session_data is None:
                 console.print("[bold red]Не удалось загрузить сессию[/bold red]")
-                step = 1
+                step = 2
                 continue
 
             state["selected_session"] = selected
@@ -356,23 +372,23 @@ def handle_convert():
                     console.print("[bold yellow]⚠ Отчёт был изменён вручную[/bold yellow]")
                     action = select_modification_action()
                     if is_back(action):
-                        step = 1
+                        step = 2
                         continue
 
                     if action == "rescan":
                         scan_result = scan_directory(session_data["scan_data"]["root"])
                         if scan_result is None:
                             console.print("[bold red]Ошибка пересканирования[/bold red]")
-                            step = 1
+                            step = 2
                             continue
                         state["session_data"]["scan_data"] = scan_result
 
                 elif status == "file_missing":
                     console.print("[bold yellow]⚠ Исходный файл отчёта не найден[/bold yellow]")
 
-            step = 3
+            step = 4
 
-        elif step == 3:
+        elif step == 4:
             current_format = "txt"
             report_path = state["session_data"].get("report_path")
             if report_path:
@@ -380,45 +396,45 @@ def handle_convert():
 
             target_format = select_convert_format(current_format)
             if is_back(target_format):
-                step = 2
-                continue
-            state["target_format"] = target_format
-            step = 4
-
-        elif step == 4:
-            include_tree = toggle_tree_view()
-            if is_back(include_tree):
                 step = 3
                 continue
-            state["include_tree"] = include_tree
+            state["target_format"] = target_format
             step = 5
 
         elif step == 5:
-            scan_data = do_redaction(state["session_data"]["scan_data"])
-            if is_back(scan_data):
+            include_tree = toggle_tree_view()
+            if is_back(include_tree):
                 step = 4
                 continue
-            state["scan_data"] = scan_data
+            state["include_tree"] = include_tree
             step = 6
 
         elif step == 6:
-            filename = input_filename()
-            if is_back(filename):
+            scan_data = do_redaction(state["session_data"]["scan_data"])
+            if is_back(scan_data):
                 step = 5
                 continue
-            state["filename"] = filename
+            state["scan_data"] = scan_data
             step = 7
 
         elif step == 7:
-            default_dir = str(state["selected_session"])
-            output_dir = select_output_directory(default_dir)
-            if is_back(output_dir):
+            filename = input_filename()
+            if is_back(filename):
                 step = 6
                 continue
-            state["output_dir"] = output_dir
+            state["filename"] = filename
             step = 8
 
         elif step == 8:
+            default_dir = str(state["selected_session"])
+            output_dir = select_output_directory(default_dir)
+            if is_back(output_dir):
+                step = 7
+                continue
+            state["output_dir"] = output_dir
+            step = 9
+
+        elif step == 9:
             output_path = Path(state["output_dir"])
             output_path.mkdir(parents=True, exist_ok=True)
 
@@ -426,7 +442,7 @@ def handle_convert():
                 state["output_dir"], state["filename"], state["target_format"]
             )
             if is_back(final_name):
-                step = 7
+                step = 8
                 continue
 
             output_file = export(
@@ -436,6 +452,69 @@ def handle_convert():
             save_session(state["scan_data"], state["output_dir"], output_file)
             console.print(f"[bold green]✓ Конвертация завершена: {output_file}[/bold green]")
             handle_post_export(output_file)
+            return
+
+        elif step == 20:
+            pdf_path = input_file_path()
+            if is_back(pdf_path):
+                step = 1
+                continue
+
+            pdf_file = Path(pdf_path)
+            if not pdf_file.exists() or pdf_file.suffix.lower() != ".pdf":
+                console.print("[bold red]Файл не найден или это не PDF[/bold red]")
+                continue
+
+            state["pdf_path"] = pdf_path
+            step = 21
+
+        elif step == 21:
+            target_format = select_convert_format("pdf")
+            if is_back(target_format):
+                step = 20
+                continue
+            state["target_format"] = target_format
+            step = 22
+
+        elif step == 22:
+            filename = input_filename()
+            if is_back(filename):
+                step = 21
+                continue
+            state["filename"] = filename
+            step = 23
+
+        elif step == 23:
+            default_dir = str(Path(state["pdf_path"]).parent)
+            output_dir = select_output_directory(default_dir)
+            if is_back(output_dir):
+                step = 22
+                continue
+            state["output_dir"] = output_dir
+            step = 24
+
+        elif step == 24:
+            output_path = Path(state["output_dir"])
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            final_name = handle_filename_conflict(
+                state["output_dir"], state["filename"], state["target_format"]
+            )
+            if is_back(final_name):
+                step = 23
+                continue
+
+            output_file = convert_pdf_to_format(
+                state["pdf_path"], final_name,
+                state["target_format"], state["output_dir"]
+            )
+
+            if output_file:
+                console.print(f"[bold green]✓ PDF конвертирован: {output_file}[/bold green]")
+                handle_post_export(output_file)
+            else:
+                console.print("[bold red]Ошибка конвертации PDF[/bold red]")
+
             return
 
 

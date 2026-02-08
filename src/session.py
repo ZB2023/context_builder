@@ -74,9 +74,10 @@ def list_sessions_in_directory(directory):
 
     return sessions
 
+
 def find_report_files(directory):
     root = Path(directory).resolve()
-    report_extensions = {".txt", ".md", ".json"}
+    report_extensions = {".txt", ".md", ".json", ".pdf"}
     report_files = []
 
     try:

@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument(
         "--format",
         type=str,
-        choices=["txt", "md", "json"],
+        choices=["txt", "md", "json", "pdf"],
         default="txt",
         help="Формат экспорта (по умолчанию: txt)",
     )

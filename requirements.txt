@@ -6,3 +6,4 @@ pyperclip>=1.9
 tiktoken>=0.7
 chardet>=5.2
 PySide6>=6.7
+PyMuPDF>=1.24
