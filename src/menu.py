@@ -1,7 +1,10 @@
+import os
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 from rich.console import Console
 from rich.panel import Panel
+
+os.environ["ESCDELAY"] = "25"
 
 console = Console()
 
@@ -28,11 +31,31 @@ def _bind_escape(prompt, result_holder):
         event.app.exit(result=BACK_VALUE)
 
 
+def _execute_with_escape(prompt):
+    result_holder = {"escaped": False}
+    _bind_escape(prompt, result_holder)
+
+    try:
+        app = prompt._application
+        app.timeoutlen = 0.05
+        app.ttimeoutlen = 0.05
+    except (AttributeError, TypeError):
+        pass
+
+    try:
+        result = prompt.execute()
+
+        if result_holder["escaped"]:
+            return BACK_VALUE
+
+        return result
+    except KeyboardInterrupt:
+        return BACK_VALUE
+
+
 def _prompt_select(message, choices, back=True):
     if back:
         choices = choices + [Choice(value=BACK_VALUE, name="← Назад")]
-
-    result_holder = {"escaped": False}
 
     try:
         prompt = inquirer.select(
@@ -40,11 +63,7 @@ def _prompt_select(message, choices, back=True):
             choices=choices,
             pointer="→",
         )
-        _bind_escape(prompt, result_holder)
-        result = prompt.execute()
-
-        if result_holder["escaped"]:
-            return BACK_VALUE
+        result = _execute_with_escape(prompt)
 
         if result is None:
             return BACK_VALUE
@@ -55,8 +74,6 @@ def _prompt_select(message, choices, back=True):
 
 
 def _prompt_text(message, default="", validate=None, invalid_message="Некорректный ввод"):
-    result_holder = {"escaped": False}
-
     try:
         prompt = inquirer.text(
             message=message,
@@ -64,11 +81,7 @@ def _prompt_text(message, default="", validate=None, invalid_message="Некор
             validate=validate,
             invalid_message=invalid_message,
         )
-        _bind_escape(prompt, result_holder)
-        result = prompt.execute()
-
-        if result_holder["escaped"]:
-            return BACK_VALUE
+        result = _execute_with_escape(prompt)
 
         if result is None:
             return BACK_VALUE
@@ -79,8 +92,6 @@ def _prompt_text(message, default="", validate=None, invalid_message="Некор
 
 
 def _prompt_filepath(message, only_directories=False):
-    result_holder = {"escaped": False}
-
     try:
         prompt = inquirer.filepath(
             message=message,
@@ -88,13 +99,12 @@ def _prompt_filepath(message, only_directories=False):
             validate=lambda path: len(path.strip()) > 0,
             invalid_message="Путь не может быть пустым",
         )
-        _bind_escape(prompt, result_holder)
-        result = prompt.execute()
+        result = _execute_with_escape(prompt)
 
-        if result_holder["escaped"]:
+        if result is None or result == BACK_VALUE:
             return BACK_VALUE
 
-        if result is None or not result.strip():
+        if not result.strip():
             return BACK_VALUE
 
         return result
@@ -103,18 +113,12 @@ def _prompt_filepath(message, only_directories=False):
 
 
 def _prompt_confirm(message, default=False):
-    result_holder = {"escaped": False}
-
     try:
         prompt = inquirer.confirm(
             message=message,
             default=default,
         )
-        _bind_escape(prompt, result_holder)
-        result = prompt.execute()
-
-        if result_holder["escaped"]:
-            return BACK_VALUE
+        result = _execute_with_escape(prompt)
 
         if result is None:
             return BACK_VALUE
@@ -125,8 +129,6 @@ def _prompt_confirm(message, default=False):
 
 
 def _prompt_checkbox(message, choices, validate=None, invalid_message="Выберите хотя бы один вариант"):
-    result_holder = {"escaped": False}
-
     try:
         prompt = inquirer.checkbox(
             message=message,
@@ -134,11 +136,7 @@ def _prompt_checkbox(message, choices, validate=None, invalid_message="Выбе�
             validate=validate,
             invalid_message=invalid_message,
         )
-        _bind_escape(prompt, result_holder)
-        result = prompt.execute()
-
-        if result_holder["escaped"]:
-            return BACK_VALUE
+        result = _execute_with_escape(prompt)
 
         if result is None:
             return BACK_VALUE
