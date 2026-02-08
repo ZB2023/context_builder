@@ -225,17 +225,17 @@ context_builder/
 │       ├── encoding.py        # Кодировки
 │       └── safety.py          # Безопасность
 ├── gui/ # GUI логика
-│ ├── init.py
-│ ├── app.py                    # Запуск приложения
-│ ├── main_window.py            # Главное окно
-│ ├── scan_tab.py               # Вкладка сканирования
-│ ├── convert_tab.py            # Вкладка конвертации
-│ ├── delete_tab.py             # Вкладка удаления
-│ ├── files_tab.py              # Вкладка выбора файлов
-│ ├── settings_tab.py           # Вкладка настроек
-│ ├── widgets.py                # Переиспользуемые виджеты
-│ ├── workers.py                # Фоновые потоки
-│ └── styles.py                 # Стили интерфейса
+  ├── init.py
+  ├── app.py                    # Запуск приложения
+  ├── main_window.py            # Главное окно
+  ├── scan_tab.py               # Вкладка сканирования
+  ├── convert_tab.py            # Вкладка конвертации
+  ├── delete_tab.py             # Вкладка удаления
+  ├── files_tab.py              # Вкладка выбора файлов
+  ├── settings_tab.py           # Вкладка настроек
+  ├── widgets.py                # Переиспользуемые виджеты
+  ├── workers.py                # Фоновые потоки
+  └── styles.py                 # Стили интерфейса
 ```
 
 # 🛠️ Требования
